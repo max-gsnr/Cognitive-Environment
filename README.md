@@ -18,11 +18,14 @@ a supported agent. This repository adds it:
 
 ```bash
 scripts/setup-entire.sh      # installs the Entire CLI if needed, registers the agent
-entire agent list            # devin should appear
+entire status                # Enabled, checkpoints syncing to origin
 ```
 
-The plugin is discovered by name: any executable called `entire-agent-<name>` on `$PATH`
-is registered as an agent, and the setup script symlinks `bin/` accordingly.
+The plugin is discovered by name: Entire resolves an external agent by looking for an
+executable called `entire-agent-<name>` on `$PATH`, so the setup script symlinks `bin/`
+into `~/.local/bin` and then runs `entire enable --agent devin`. Note that `entire agent
+list` (CLI 0.10.2) prints built-in agents only and will not show `devin` — see
+[docs/ENTIRE.md](docs/ENTIRE.md#known-gaps).
 
 ## Use
 
