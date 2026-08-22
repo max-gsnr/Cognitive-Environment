@@ -1,0 +1,61 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "01M0NY5QX9AMQFPD8WD5VG88FY",
+  "session_id": "devin-setup-entire",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-22T23:51:24.119972571Z",
+  "branch": "devin/1787442269-entire-devin-agent",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "scripts/setup-entire.sh"
+  ],
+  "agent": "Devin",
+  "model": "devin",
+  "turn_id": "d46482445ec8",
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-22T23:51:24.114520968Z",
+    "agent_lines": 32,
+    "agent_removed": 0,
+    "human_added": 21,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 53,
+    "total_lines_changed": 53,
+    "agent_percentage": 60.37735849056604,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1937,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.json": 84,
+        ".devin/entire/hooks.json": 12,
+        "bin/entire-agent-devin": 14,
+        "bin/entire-devin-bridge": 14,
+        "examples/devin-session-sample.json": 58,
+        "pyproject.toml": 29,
+        "tests/test_bridge.py": 166,
+        "tests/test_plugin_protocol.py": 423,
+        "tools/entire_agent_devin/__init__.py": 5,
+        "tools/entire_agent_devin/bridge.py": 410,
+        "tools/entire_agent_devin/plugin.py": 529,
+        "tools/entire_agent_devin/transcript.py": 193
+      }
+    }
+  ]
+}
