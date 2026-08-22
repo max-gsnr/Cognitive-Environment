@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.DS_Store
+
+# Entire keeps logs and scratch state here; settings.json is meant to be shared.
+.entire/logs/
+.entire/tmp/
+.entire/metadata/
+.entire/settings.local.json
