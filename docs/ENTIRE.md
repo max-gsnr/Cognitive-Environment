@@ -105,9 +105,9 @@ $ entire blame scripts/setup-entire.sh
   `calculate-tokens` for external agents in this version, although the transcript carries
   per-message usage.
 - Live polling (`follow`) needs `DEVIN_API_KEY` and hits
-  `GET $DEVIN_API_BASE/session/<id>` (`DEVIN_API_BASE` defaults to
-  `https://api.devin.ai/v1`). It is **untested against the live API** — only the offline
-  `capture` path has been exercised end to end. Verify the endpoint shape against current
-  Devin API docs before relying on it.
+  `GET $DEVIN_API_BASE/sessions/<id>` (`DEVIN_API_BASE` defaults to
+  `https://api.devin.ai/v1`, matching the v1 OpenAPI spec; for v3 set it to
+  `https://api.devin.ai/v3/organizations/<org_id>`). It is **untested against the live
+  API** — only the offline `capture` path has been exercised end to end.
 - `entire login` was never performed, so nothing was pushed to Entire's hosted side;
   checkpoints live in git refs in this repository.

@@ -62,7 +62,10 @@ def api_base() -> str:
 def fetch_session(session_id: str) -> dict[str, Any]:
     """Fetch a session from the Devin API.
 
-    Reference: ``GET /v1/session/{session_id}``.
+    Reference: ``GET /v1/sessions/{session_id}`` (docs.devin.ai v1 OpenAPI).
+    For the v3 API, point ``DEVIN_API_BASE`` at
+    ``https://api.devin.ai/v3/organizations/<org_id>``: the path suffix matches
+    and the response carries the same ``messages`` / ``status_enum`` fields.
     """
     api_key = os.environ.get("DEVIN_API_KEY")
     if not api_key:
@@ -71,7 +74,7 @@ def fetch_session(session_id: str) -> dict[str, Any]:
             "saved API response instead of polling."
         )
     request = urllib.request.Request(
-        f"{api_base()}/session/{session_id}",
+        f"{api_base()}/sessions/{session_id}",
         headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
     )
     try:
