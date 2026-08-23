@@ -2,12 +2,12 @@
  * OpenGame Dynamic Multi-Theme Engine
  * 
  * Generates custom 60fps canvas gameplay tailored to each child's interest:
- * - 🍝 Max (Cooking / Spaghetti): First-person plate of steaming pasta with meatballs.
- *   Each correct answer twirls up a bite with the fork; after 10 questions the plate is empty!
- * - 🦕 Maya (Dinosaurs / Fossils): Jurassic archaeological dig where each question unearths
- *   a piece of a glowing T-Rex fossil skeleton using a field brush.
- * - 🎾 Lena (Tennis / Horses): Grand slam championship court with racket serve mechanics.
- * - 🚀 Leo (Space / Trains): Cosmic star-docking and steam locomotive navigation.
+ * - 🍝 Max (Spaghetti / Cooking): Real plate of steaming pasta with meatballs.
+ *   Each correct answer lifts a twirling forkful of noodles; after 10 questions the plate is empty!
+ * - 🎾 Lena (Tennis): A real tennis match where each correct answer serves a high-velocity
+ *   ace past the opposing player across the net for a match point!
+ * - 🦕 Maya (Dinosaurs): An archaeological dig where a brush sweeps away dirt to reveal a T-Rex fossil.
+ * - 🚀 Leo (Space): Starship quantum docking into an orbital station.
  */
 
 import { AttemptResult, Question, api } from "../api";
@@ -18,95 +18,60 @@ import { soundFx } from "./SoundFx";
 export interface GameTheme {
   id: string;
   name: string;
-  targetLabel: string;
   playerLabel: string;
   successLabel: string;
   bgColor: string;
-  gridColor: string;
   accentColor: string;
-  playerColor: string;
-  starColors: string[];
-  laserColor: string;
 }
 
 export const THEMES: Record<string, GameTheme> = {
   cooking: {
     id: "cooking",
     name: "🍝 Spaghetti Feast",
-    targetLabel: "🍝 PASTA PLATE",
     playerLabel: "Fork",
     successLabel: "✦ Delicious Bite Tasted!",
-    bgColor: "#1a0d0d",
-    gridColor: "rgba(239, 68, 68, 0.08)",
+    bgColor: "#1c100d",
     accentColor: "#ef4444",
-    playerColor: "#cbd5e1",
-    starColors: ["#fff1f2", "#fecdd3", "#fb7185", "#fde047"],
-    laserColor: "#f59e0b",
+  },
+  tennis: {
+    id: "tennis",
+    name: "🎾 Grand Slam Match",
+    playerLabel: "Lena (Server)",
+    successLabel: "✦ ACE! Served Past Opponent!",
+    bgColor: "#072413",
+    accentColor: "#4ade80",
   },
   dinosaurs: {
     id: "dinosaurs",
     name: "🦕 Jurassic Fossil Dig",
-    targetLabel: "🦴 FOSSIL SITE",
     playerLabel: "Dig Brush",
     successLabel: "✦ Fossil Segment Unearthed!",
-    bgColor: "#140e06",
-    gridColor: "rgba(245, 158, 11, 0.08)",
+    bgColor: "#160e05",
     accentColor: "#f59e0b",
-    playerColor: "#d97706",
-    starColors: ["#fef3c7", "#fde68a", "#d97706", "#6ee7b7"],
-    laserColor: "#f59e0b",
-  },
-  tennis: {
-    id: "tennis",
-    name: "🎾 Grand Slam Tennis",
-    targetLabel: "🏆 COURT NET",
-    playerLabel: "Tennis Racket",
-    successLabel: "✦ Ace Serve Past Opponent!",
-    bgColor: "#051a10",
-    gridColor: "rgba(74, 222, 128, 0.08)",
-    accentColor: "#4ade80",
-    playerColor: "#a3e635",
-    starColors: ["#f0fdf4", "#bbf7d0", "#86efac", "#facc15"],
-    laserColor: "#4ade80",
   },
   horses: {
     id: "horses",
     name: "🐴 Equestrian Meadow",
-    targetLabel: "🏇 STABLE GATE",
     playerLabel: "Horseshoe Rider",
     successLabel: "✦ Meadow Gate Cleared!",
     bgColor: "#0b170e",
-    gridColor: "rgba(132, 204, 22, 0.08)",
     accentColor: "#84cc16",
-    playerColor: "#eab308",
-    starColors: ["#f7fee7", "#ecfccb", "#bef264", "#fef08a"],
-    laserColor: "#84cc16",
   },
   trains: {
     id: "trains",
     name: "🚂 Steam Locomotive",
-    targetLabel: "🚉 TRAIN DEPOT",
     playerLabel: "Steam Engine",
-    successLabel: "✦ Train Station Reached!",
+    successLabel: "✦ Depot Reached!",
     bgColor: "#09121d",
-    gridColor: "rgba(148, 163, 184, 0.08)",
     accentColor: "#38bdf8",
-    playerColor: "#f59e0b",
-    starColors: ["#f8fafc", "#e2e8f0", "#94a3b8", "#38bdf8"],
-    laserColor: "#38bdf8",
   },
   nebula: {
     id: "nebula",
     name: "🌌 Deep Space Nebula",
-    targetLabel: "✦ DOCK HUB",
     playerLabel: "Starship",
     successLabel: "✦ Star Pod Docked!",
     bgColor: "#070b14",
-    gridColor: "rgba(56, 189, 248, 0.06)",
     accentColor: "#38bdf8",
-    playerColor: "#60a5fa",
-    starColors: ["#ffffff", "#93c5fd", "#c084fc", "#38bdf8"],
-    laserColor: "#38bdf8",
   },
 };
 
@@ -115,11 +80,11 @@ export function getThemeForInterests(interests: string[] = []): GameTheme {
   if (combined.includes("spaghetti") || combined.includes("pasta") || combined.includes("cook") || combined.includes("food") || combined.includes("baking") || combined.includes("pizza")) {
     return THEMES.cooking;
   }
-  if (combined.includes("dinosaur") || combined.includes("fossil") || combined.includes("paleontol")) {
-    return THEMES.dinosaurs;
-  }
   if (combined.includes("tennis")) {
     return THEMES.tennis;
+  }
+  if (combined.includes("dinosaur") || combined.includes("fossil") || combined.includes("paleontol")) {
+    return THEMES.dinosaurs;
   }
   if (combined.includes("horse") || combined.includes("equestrian") || combined.includes("riding")) {
     return THEMES.horses;
@@ -128,23 +93,6 @@ export function getThemeForInterests(interests: string[] = []): GameTheme {
     return THEMES.trains;
   }
   return THEMES.nebula;
-}
-
-export interface Station {
-  id: string;
-  x: number;
-  y: number;
-  radius: number;
-  pulsePhase: number;
-  docked: boolean;
-}
-
-export interface LaserBeam {
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-  alpha: number;
 }
 
 export interface GameCallbacks {
@@ -167,9 +115,8 @@ export class OpenGameArena {
   public sessionLength: number = 10;
   public theme: GameTheme = THEMES.nebula;
   public soundEnabled: boolean = true;
-  public particleIntensity: "low" | "standard" | "high" = "standard";
 
-  // State Machine: Title -> Playing -> Submitting -> Victory
+  // State Machine
   public state: "TITLE" | "PLAYING" | "SUBMITTING" | "VICTORY" = "TITLE";
   public currentQuestion: Question | null = null;
   public score: number = 0;
@@ -178,34 +125,45 @@ export class OpenGameArena {
   public feedbackIsGentle: boolean = false;
   private shownAt: number = 0;
 
-  // Visuals & Particles
+  // Particles
   private particles: ParticleSystem;
   private steamVapors: Array<{ x: number; y: number; vx: number; vy: number; alpha: number; size: number }> = [];
 
-  // Player Utensil / Vehicle
+  // Player Actor (Fork, Tennis Racket, Dig Brush, Starship)
   private player = {
     x: 400,
-    y: 380,
+    y: 390,
     vx: 0,
     vy: 0,
     angle: -Math.PI / 2,
     targetAngle: -Math.PI / 2,
-    speed: 6.0,
+    speed: 6.5,
     size: 26,
     idlePhase: 0,
     twirlAngle: 0,
+    swingPhase: 0,
   };
 
-  // Centerpiece Hub (Plate, Fossil Pit, Net, or Space Station)
-  private centerpiece: Station = {
-    id: "main-target",
+  // Opponent Tennis Player (for Tennis Match)
+  private opponent = {
     x: 400,
-    y: 175,
-    radius: 70,
-    pulsePhase: 0,
-    docked: false,
+    y: 115,
+    vx: 1.8,
+    targetX: 400,
+    diveOffset: 0,
+    swinging: false,
   };
-  private laserBeams: LaserBeam[] = [];
+
+  // Tennis Ball Physics
+  private tennisBall = {
+    x: 400,
+    y: 380,
+    vx: 0,
+    vy: 0,
+    altitude: 0,
+    active: false,
+    trail: [] as Array<{ x: number; y: number; alpha: number }>,
+  };
 
   // Controls
   private targetX: number | null = null;
@@ -229,14 +187,14 @@ export class OpenGameArena {
     this.theme = THEMES[themeKey] || THEMES.nebula;
     this.particles = new ParticleSystem();
 
-    this.initVapors();
+    this.initSteam();
     this.bindEvents();
     this.resizeCanvas();
   }
 
   public setTheme(themeKey: string): void {
     this.theme = THEMES[themeKey] || THEMES.nebula;
-    this.initVapors();
+    this.initSteam();
   }
 
   public setAudio(enabled: boolean): void {
@@ -244,16 +202,16 @@ export class OpenGameArena {
     soundFx.enabled = enabled;
   }
 
-  private initVapors(): void {
+  private initSteam(): void {
     this.steamVapors = [];
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 20; i++) {
       this.steamVapors.push({
-        x: this.centerpiece.x + (Math.random() - 0.5) * 60,
-        y: this.centerpiece.y + (Math.random() - 0.5) * 40,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: -Math.random() * 0.8 - 0.4,
-        alpha: Math.random() * 0.6 + 0.2,
-        size: Math.random() * 8 + 4,
+        x: 400 + (Math.random() - 0.5) * 60,
+        y: 180 + (Math.random() - 0.5) * 40,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: -Math.random() * 0.7 - 0.3,
+        alpha: Math.random() * 0.5 + 0.2,
+        size: Math.random() * 7 + 4,
       });
     }
   }
@@ -292,7 +250,10 @@ export class OpenGameArena {
       this.state = "PLAYING";
       this.feedbackMessage = "";
       this.feedbackIsGentle = false;
-      this.centerpiece.docked = false;
+      this.player.twirlAngle = 0;
+      this.player.swingPhase = 0;
+      this.tennisBall.active = false;
+      this.opponent.diveOffset = 0;
 
       capture("problem_shown", {
         game_id: `orbit-${this.theme.id}`,
@@ -314,14 +275,18 @@ export class OpenGameArena {
     this.state = "SUBMITTING";
     const latency = Math.max(100, Math.round(performance.now() - this.shownAt));
 
-    // Action Beam / Fork Motion toward Centerpiece
-    this.laserBeams.push({
-      startX: this.player.x,
-      startY: this.player.y,
-      endX: this.centerpiece.x,
-      endY: this.centerpiece.y,
-      alpha: 1.0,
-    });
+    // Tennis Serve Launch
+    if (this.theme.id === "tennis") {
+      this.player.swingPhase = 1.0;
+      this.tennisBall.active = true;
+      this.tennisBall.x = this.player.x + 10;
+      this.tennisBall.y = this.player.y - 15;
+      // Serve trajectory towards opponent's backhand corner
+      const targetX = this.opponent.x > 400 ? 260 : 540;
+      this.tennisBall.vx = (targetX - this.tennisBall.x) / 22;
+      this.tennisBall.vy = (110 - this.tennisBall.y) / 22;
+      this.tennisBall.altitude = 20;
+    }
 
     if (this.soundEnabled) soundFx.laser();
 
@@ -347,30 +312,30 @@ export class OpenGameArena {
       this.callbacks.onAttemptResult?.(result);
 
       if (result.is_correct) {
-        this.centerpiece.docked = true;
         this.answeredCount += 1;
         this.score += 100;
         this.callbacks.onScoreUpdate?.(this.score, this.answeredCount);
 
         if (this.soundEnabled) soundFx.dockSuccess();
 
-        // Thematic particle explosion
+        // Thematic Celebrations
         if (this.theme.id === "cooking") {
-          this.particles.emitExplosion(this.centerpiece.x, this.centerpiece.y, "#ef4444", 28);
-          this.particles.emitExplosion(this.centerpiece.x, this.centerpiece.y, "#fde047", 16);
-          this.particles.addFloatingText(this.centerpiece.x, this.centerpiece.y - 30, "+1 DELICIOUS BITE!", "#ef4444");
-        } else if (this.theme.id === "dinosaurs") {
-          this.particles.emitExplosion(this.centerpiece.x, this.centerpiece.y, "#f59e0b", 26);
-          this.particles.addFloatingText(this.centerpiece.x, this.centerpiece.y - 30, "+1 FOSSIL UNEARTHED!", "#f59e0b");
+          this.particles.emitExplosion(400, 180, "#ef4444", 26);
+          this.particles.emitExplosion(400, 180, "#fde047", 18);
+          this.particles.addFloatingText(400, 140, "+1 DELICIOUS BITE!", "#ef4444");
         } else if (this.theme.id === "tennis") {
-          this.particles.emitExplosion(this.centerpiece.x, this.centerpiece.y, "#4ade80", 26);
-          this.particles.addFloatingText(this.centerpiece.x, this.centerpiece.y - 30, "🎾 ACE SERVE!", "#4ade80");
+          this.opponent.diveOffset = this.tennisBall.vx > 0 ? -40 : 40;
+          this.particles.emitExplosion(this.tennisBall.x, 110, "#ffffff", 24);
+          this.particles.addFloatingText(this.opponent.x, 75, "🎾 ACE! PAST OPPONENT!", "#4ade80");
+        } else if (this.theme.id === "dinosaurs") {
+          this.particles.emitExplosion(400, 180, "#f59e0b", 26);
+          this.particles.addFloatingText(400, 140, "+1 FOSSIL UNEARTHED!", "#f59e0b");
         } else {
-          this.particles.emitExplosion(this.centerpiece.x, this.centerpiece.y, this.theme.accentColor, 24);
-          this.particles.addFloatingText(this.centerpiece.x, this.centerpiece.y - 30, "✦ DOCKED!", this.theme.accentColor);
+          this.particles.emitExplosion(400, 180, this.theme.accentColor, 24);
+          this.particles.addFloatingText(400, 140, "✦ DOCKED!", this.theme.accentColor);
         }
 
-        this.particles.shake(200, 4);
+        this.particles.shake(200, 3.5);
         this.feedbackMessage = this.theme.successLabel;
         this.feedbackIsGentle = false;
 
@@ -385,7 +350,7 @@ export class OpenGameArena {
         }
       } else {
         if (this.soundEnabled) soundFx.gentleRetry();
-        this.particles.emitExplosion(this.centerpiece.x, this.centerpiece.y, "#fbbf24", 12);
+        this.particles.emitExplosion(400, 180, "#fbbf24", 12);
         this.feedbackMessage = `Almost — it was ${this.currentQuestion.correct_answer}. Next one incoming!`;
         this.feedbackIsGentle = true;
 
@@ -398,37 +363,48 @@ export class OpenGameArena {
   }
 
   private update(deltaMs: number): void {
-    // 1. Steam Vapors (Cooking theme)
+    // 1. Steam Vapors
     for (const v of this.steamVapors) {
       v.x += v.vx;
       v.y += v.vy;
-      v.alpha -= 0.008;
-      if (v.alpha <= 0 || v.y < this.centerpiece.y - 80) {
-        v.x = this.centerpiece.x + (Math.random() - 0.5) * 50;
-        v.y = this.centerpiece.y + 10;
+      v.alpha -= 0.007;
+      if (v.alpha <= 0 || v.y < 110) {
+        v.x = 400 + (Math.random() - 0.5) * 60;
+        v.y = 180 + (Math.random() - 0.5) * 30;
         v.alpha = Math.random() * 0.5 + 0.2;
       }
     }
 
-    // 2. Action Beams
-    for (let i = this.laserBeams.length - 1; i >= 0; i--) {
-      this.laserBeams[i].alpha -= 0.08;
-      if (this.laserBeams[i].alpha <= 0) this.laserBeams.splice(i, 1);
+    // 2. Tennis Ball Physics
+    if (this.tennisBall.active) {
+      this.tennisBall.x += this.tennisBall.vx;
+      this.tennisBall.y += this.tennisBall.vy;
+      this.tennisBall.altitude = Math.max(0, this.tennisBall.altitude - 0.8);
+      this.tennisBall.trail.push({ x: this.tennisBall.x, y: this.tennisBall.y, alpha: 0.9 });
+      if (this.tennisBall.trail.length > 12) this.tennisBall.trail.shift();
     }
 
-    // 3. Player Steering & Inertia
+    // 3. Opponent Pacing (Tennis)
+    if (this.theme.id === "tennis") {
+      this.opponent.x += this.opponent.vx;
+      if (this.opponent.x > 520 || this.opponent.x < 280) {
+        this.opponent.vx = -this.opponent.vx;
+      }
+    }
+
+    // 4. Player Steering
     this.player.idlePhase += 0.04;
     if (this.state === "SUBMITTING") {
-      this.player.twirlAngle += 0.25;
+      this.player.twirlAngle += 0.22;
     }
 
     if (this.targetX !== null && this.targetY !== null) {
       const dx = this.targetX - this.player.x;
       const dy = this.targetY - this.player.y;
       const dist = Math.hypot(dx, dy);
-      if (dist > 15) {
-        this.player.vx += (dx / dist) * 0.5;
-        this.player.vy += (dy / dist) * 0.5;
+      if (dist > 12) {
+        this.player.vx += (dx / dist) * 0.55;
+        this.player.vy += (dy / dist) * 0.55;
         this.player.targetAngle = Math.atan2(dy, dx);
       } else {
         this.targetX = null;
@@ -436,17 +412,16 @@ export class OpenGameArena {
       }
     }
 
-    this.player.vx *= 0.92;
-    this.player.vy *= 0.92;
+    this.player.vx *= 0.91;
+    this.player.vy *= 0.91;
     this.player.x += this.player.vx * this.player.speed;
     this.player.y += this.player.vy * this.player.speed;
 
-    // Bounds clamping
+    // Bounds
     const pad = 40;
     this.player.x = Math.max(pad, Math.min(this.canvas.width - pad, this.player.x));
-    this.player.y = Math.max(this.canvas.height / 2 + 10, Math.min(this.canvas.height - pad, this.player.y));
+    this.player.y = Math.max(this.canvas.height / 2 + 20, Math.min(this.canvas.height - pad, this.player.y));
 
-    this.centerpiece.pulsePhase += 0.05;
     this.particles.update(deltaMs);
   }
 
@@ -457,40 +432,32 @@ export class OpenGameArena {
 
     ctx.save();
 
-    // Screen Shake
     if (this.particles.shakeDuration > 0) {
       const intensity = this.particles.shakeIntensity;
       ctx.translate((Math.random() - 0.5) * intensity * 2, (Math.random() - 0.5) * intensity * 2);
     }
 
-    // 1. Render Thematic Environment
+    // 1. World Environment
     this.renderEnvironment(ctx, w, h);
 
-    // 2. Render Thematic Target Centerpiece
-    this.renderCenterpiece(ctx);
-
-    // 3. Render Laser Beams / Action Trails
-    ctx.save();
-    for (const b of this.laserBeams) {
-      ctx.strokeStyle = this.theme.laserColor;
-      ctx.globalAlpha = b.alpha;
-      ctx.lineWidth = 4;
-      ctx.shadowColor = this.theme.laserColor;
-      ctx.shadowBlur = 12;
-      ctx.beginPath();
-      ctx.moveTo(b.startX, b.startY);
-      ctx.lineTo(b.endX, b.endY);
-      ctx.stroke();
+    // 2. Center Target / Match Item
+    if (this.theme.id === "cooking") {
+      this.renderSpaghettiPlate(ctx, 400, 185);
+    } else if (this.theme.id === "tennis") {
+      this.renderTennisMatch(ctx, w, h);
+    } else if (this.theme.id === "dinosaurs") {
+      this.renderDinosaurDigSite(ctx, 400, 185);
+    } else {
+      this.renderSpaceStation(ctx, 400, 185);
     }
-    ctx.restore();
 
-    // 4. Render Thematic Player Actor (Fork, Brush, Racket, or Starship)
+    // 3. Player Actor (Fork, Racket, Brush, Starship)
     this.renderPlayerActor(ctx);
 
-    // 5. Render HUD Banner
+    // 4. Single Focal Point HUD
     this.renderHUD();
 
-    // 6. Particles & Popups
+    // 5. Particles & Text
     this.particles.render(ctx);
 
     ctx.restore();
@@ -501,51 +468,40 @@ export class OpenGameArena {
     ctx.fillRect(0, 0, w, h);
 
     if (this.theme.id === "cooking") {
-      // Warm Italian checkered dining tablecloth
-      const cellSize = 40;
+      // Warm Italian Gingham Checkered Dining Table
+      const cellSize = 36;
       for (let x = 0; x < w; x += cellSize) {
         for (let y = 0; y < h; y += cellSize) {
           if ((Math.floor(x / cellSize) + Math.floor(y / cellSize)) % 2 === 0) {
-            ctx.fillStyle = "rgba(239, 68, 68, 0.04)";
+            ctx.fillStyle = "rgba(239, 68, 68, 0.05)";
             ctx.fillRect(x, y, cellSize, cellSize);
           }
         }
       }
-      // Wooden table edge
       ctx.strokeStyle = "rgba(245, 158, 11, 0.15)";
       ctx.lineWidth = 2;
       ctx.strokeRect(16, 16, w - 32, h - 32);
-    } else if (this.theme.id === "dinosaurs") {
-      // Archaeological Sandstone Grid
-      ctx.strokeStyle = "rgba(245, 158, 11, 0.1)";
-      ctx.lineWidth = 1;
-      for (let x = 0; x < w; x += 50) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-        ctx.stroke();
-      }
-      for (let y = 0; y < h; y += 50) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }
     } else if (this.theme.id === "tennis") {
-      // Grass Court with Regulation White Lines & Net
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-      ctx.lineWidth = 2;
+      // Grass Court with Regulation White Chalk Lines
+      ctx.fillStyle = "#0c3b1e";
+      ctx.fillRect(40, 20, w - 80, h - 40);
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.lineWidth = 2.5;
+      // Baseline & Sidelines
       ctx.strokeRect(60, 40, w - 120, h - 80);
-      // Net Line
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
-      ctx.lineWidth = 3;
+      // Service Line (Top)
+      ctx.strokeRect(120, 90, w - 240, 90);
+      // Service Line (Bottom)
+      ctx.strokeRect(120, h / 2 + 10, w - 240, 90);
+      // Center Line
       ctx.beginPath();
-      ctx.moveTo(40, h / 2);
-      ctx.lineTo(w - 40, h / 2);
+      ctx.moveTo(w / 2, 90);
+      ctx.lineTo(w / 2, h - 130);
       ctx.stroke();
     } else {
-      // Cosmic Orbit Coordinate Grid
-      ctx.strokeStyle = this.theme.gridColor;
+      // Cosmic Grid
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.08)";
       ctx.lineWidth = 1;
       for (let x = 0; x < w; x += 60) {
         ctx.beginPath();
@@ -556,250 +512,332 @@ export class OpenGameArena {
     }
   }
 
-  private renderCenterpiece(ctx: CanvasRenderingContext2D): void {
-    const cx = this.centerpiece.x;
-    const cy = this.centerpiece.y;
+  // ==========================================
+  // 1. MAX'S REAL SPAGHETTI PLATE (BITE-BY-BITE)
+  // ==========================================
+  private renderSpaghettiPlate(ctx: CanvasRenderingContext2D, cx: number, cy: number): void {
     const remainingPct = Math.max(0, 1 - this.answeredCount / this.sessionLength);
 
-    if (this.theme.id === "cooking") {
-      // ==========================================
-      // MAX'S STEAMING SPAGHETTI PLATE (BITE-BY-BITE)
-      // ==========================================
-      ctx.save();
-      // Plate Shadow
-      ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-      ctx.beginPath();
-      ctx.arc(cx, cy + 8, 90, 0, Math.PI * 2);
-      ctx.fill();
+    ctx.save();
+    // Plate Outer Ceramic Shadow
+    ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+    ctx.beginPath();
+    ctx.arc(cx, cy + 8, 92, 0, Math.PI * 2);
+    ctx.fill();
 
-      // Porcelain Plate Outer Rim
-      ctx.fillStyle = "#f8fafc";
-      ctx.strokeStyle = "#e2e8f0";
-      ctx.lineWidth = 4;
+    // White Porcelain Plate Rim with Red Tuscan Band
+    ctx.fillStyle = "#f8fafc";
+    ctx.strokeStyle = "#dc2626";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 90, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Plate Inner Well
+    ctx.fillStyle = "#f1f5f9";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 70, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (remainingPct > 0) {
+      // Steaming Hot Vapor Particles
+      for (const v of this.steamVapors) {
+        ctx.fillStyle = "rgba(255, 255, 255, " + v.alpha + ")";
+        ctx.beginPath();
+        ctx.arc(v.x, v.y, v.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Golden Spaghetti Mound (Proportionally Shrinks as Max Eats!)
+      const pastaRadius = 56 * Math.sqrt(remainingPct);
+      ctx.fillStyle = "#facc15";
+      ctx.strokeStyle = "#ca8a04";
+      ctx.lineWidth = 2.5;
+
       ctx.beginPath();
-      ctx.arc(cx, cy, 88, 0, Math.PI * 2);
+      ctx.arc(cx, cy, pastaRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
 
-      // Plate Inner Well
-      ctx.fillStyle = "#f1f5f9";
+      // Swirling Noodle Strands
+      ctx.strokeStyle = "#eab308";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < Math.ceil(8 * remainingPct); i++) {
+        const ang = (i * Math.PI) / 4;
+        ctx.beginPath();
+        ctx.ellipse(cx + Math.cos(ang) * 12, cy + Math.sin(ang) * 10, pastaRadius * 0.6, pastaRadius * 0.35, ang, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Rich Red Marinara Sauce Layer
+      ctx.fillStyle = "rgba(220, 38, 38, 0.92)";
       ctx.beginPath();
-      ctx.arc(cx, cy, 68, 0, Math.PI * 2);
+      ctx.arc(cx, cy - 4, pastaRadius * 0.65, 0, Math.PI * 2);
       ctx.fill();
 
-      if (remainingPct > 0) {
-        // Steaming Vapor Particles
-        for (const v of this.steamVapors) {
-          ctx.fillStyle = "rgba(255, 255, 255, " + v.alpha + ")";
-          ctx.beginPath();
-          ctx.arc(v.x, v.y, v.size, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // Golden Spaghetti Noodles Mound (Shrinks proportionally with each question!)
-        const pastaRadius = 55 * Math.sqrt(remainingPct);
-        ctx.fillStyle = "#facc15";
-        ctx.strokeStyle = "#eab308";
-        ctx.lineWidth = 2.5;
-
+      // Savory Meatballs (3 Meatballs that vanish bite-by-bite)
+      const meatballCount = Math.ceil(3 * remainingPct);
+      const mbOffsets = [
+        { x: -15, y: -10 },
+        { x: 16, y: -8 },
+        { x: 0, y: 14 },
+      ];
+      ctx.fillStyle = "#78350f";
+      ctx.strokeStyle = "#451a03";
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < meatballCount; i++) {
         ctx.beginPath();
-        ctx.arc(cx, cy, pastaRadius, 0, Math.PI * 2);
+        ctx.arc(cx + mbOffsets[i].x, cy + mbOffsets[i].y, 11, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+      }
 
-        // Tangled Swirling Noodle Strands
-        ctx.strokeStyle = "#ca8a04";
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 8 * remainingPct; i++) {
-          const ang = (i * Math.PI) / 4;
-          ctx.beginPath();
-          ctx.ellipse(cx + Math.cos(ang) * 15, cy + Math.sin(ang) * 10, pastaRadius * 0.6, pastaRadius * 0.35, ang, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-
-        // Rich Marinara Sauce Splash
-        ctx.fillStyle = "rgba(220, 38, 38, 0.9)";
-        ctx.beginPath();
-        ctx.arc(cx, cy - 4, pastaRadius * 0.65, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Savory Meatballs (3 meatballs disappear as questions are solved)
-        const meatballCount = Math.ceil(3 * remainingPct);
-        const mbOffsets = [
-          { x: -14, y: -10 },
-          { x: 16, y: -8 },
-          { x: 0, y: 14 },
-        ];
-        ctx.fillStyle = "#78350f";
-        ctx.strokeStyle = "#451a03";
-        ctx.lineWidth = 1.5;
-        for (let i = 0; i < meatballCount; i++) {
-          ctx.beginPath();
-          ctx.arc(cx + mbOffsets[i].x, cy + mbOffsets[i].y, 11, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        }
-
-        // Fresh Basil Garnish Leaf
-        if (remainingPct > 0.3) {
-          ctx.fillStyle = "#16a34a";
-          ctx.beginPath();
-          ctx.ellipse(cx + 2, cy - 14, 8, 4, Math.PI / 4, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      } else {
-        // Clean Empty Plate with leftover sauce streaks!
-        ctx.strokeStyle = "rgba(220, 38, 38, 0.35)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(cx - 20, cy - 10);
-        ctx.bezierCurveTo(cx - 5, cy + 15, cx + 15, cy - 5, cx + 25, cy + 10);
-        ctx.stroke();
-
+      // Fresh Green Basil Leaf Garnish
+      if (remainingPct > 0.25) {
         ctx.fillStyle = "#16a34a";
-        ctx.font = "bold 16px system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("⭐ Clean Plate! Molto Bene! ⭐", cx, cy);
-      }
-
-      ctx.restore();
-    } else if (this.theme.id === "dinosaurs") {
-      // ==========================================
-      // MAYA'S JURASSIC FOSSIL DIG SITE
-      // ==========================================
-      ctx.save();
-      ctx.fillStyle = "#291807";
-      ctx.strokeStyle = "#f59e0b";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 75, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Unearthed T-Rex Skeleton Segments
-      const unearthedBones = Math.min(10, this.answeredCount);
-      ctx.fillStyle = "#fef08a";
-      ctx.shadowColor = "#f59e0b";
-      ctx.shadowBlur = 10;
-
-      // 1. Skull
-      if (unearthedBones >= 1) {
         ctx.beginPath();
-        ctx.ellipse(cx, cy - 25, 22, 14, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx + 2, cy - 14, 8, 4, Math.PI / 4, 0, Math.PI * 2);
         ctx.fill();
       }
-      // 2. Spine & Ribs
-      if (unearthedBones >= 3) {
-        ctx.fillRect(cx - 4, cy - 10, 8, 35);
-        for (let r = 0; r < 4; r++) {
-          ctx.fillRect(cx - 16, cy - 5 + r * 8, 32, 3);
-        }
-      }
-      // 3. Tail & Claws
-      if (unearthedBones >= 6) {
-        ctx.beginPath();
-        ctx.moveTo(cx, cy + 25);
-        ctx.lineTo(cx + 25, cy + 45);
-        ctx.lineTo(cx + 35, cy + 42);
-        ctx.stroke();
-      }
-
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#ffffff";
-      ctx.textAlign = "center";
-      ctx.font = "bold 15px monospace";
-      ctx.fillText(`${unearthedBones}/10 BONES`, cx, cy + 60);
-      ctx.restore();
     } else {
-      // Cosmic Orbit Docking Hub
-      ctx.save();
-      const glow = Math.sin(this.centerpiece.pulsePhase) * 4 + 8;
-      ctx.shadowColor = this.theme.accentColor;
-      ctx.shadowBlur = glow;
-      ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
-      ctx.strokeStyle = this.centerpiece.docked ? "#4ade80" : this.theme.accentColor;
-      ctx.lineWidth = 3;
-
+      // Completely Clean Plate with leftover sauce streaks!
+      ctx.strokeStyle = "rgba(220, 38, 38, 0.4)";
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.arc(cx, cy, this.centerpiece.radius, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(cx - 25, cy - 10);
+      ctx.bezierCurveTo(cx - 5, cy + 18, cx + 15, cy - 8, cx + 28, cy + 12);
       ctx.stroke();
 
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#16a34a";
+      ctx.font = "bold 16px system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = "bold 18px monospace";
-      ctx.fillText(this.centerpiece.docked ? "✦ DOCKED" : this.theme.targetLabel, cx, cy);
+      ctx.fillText("⭐ Clean Plate! Molto Bene! ⭐", cx, cy);
+    }
+
+    ctx.restore();
+  }
+
+  // ==========================================
+  // 2. LENA'S REAL GRAND SLAM TENNIS MATCH
+  // ==========================================
+  private renderTennisMatch(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+    const netY = h / 2 - 5;
+
+    // 1. Tennis Net across the court
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.fillRect(40, netY, w - 80, 14);
+    // White top tape
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(40, netY, w - 80, 3);
+    // Net posts
+    ctx.fillStyle = "#334155";
+    ctx.fillRect(36, netY - 8, 6, 26);
+    ctx.fillRect(w - 42, netY - 8, 6, 26);
+    ctx.restore();
+
+    // 2. Opponent Player across the net (Pacing Baseline)
+    ctx.save();
+    const opX = this.opponent.x + this.opponent.diveOffset;
+    const opY = this.opponent.y;
+
+    // Opponent Shadow
+    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+    ctx.beginPath();
+    ctx.ellipse(opX, opY + 22, 14, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Opponent Body (Tennis Whites)
+    ctx.fillStyle = "#38bdf8";
+    ctx.beginPath();
+    ctx.arc(opX, opY, 10, 0, Math.PI * 2); // Head
+    ctx.fill();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(opX - 7, opY + 8, 14, 16); // Jersey
+
+    // Opponent Racket
+    ctx.strokeStyle = "#f87171";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(opX + 16, opY + 8, 9, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // 3. High-Velocity Tennis Ball Serve with Trail
+    if (this.tennisBall.active) {
+      ctx.save();
+      // Ball Trail
+      for (const t of this.tennisBall.trail) {
+        ctx.fillStyle = `rgba(204, 255, 0, ${t.alpha * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Fuzzy Optic Yellow Tennis Ball with white seam
+      ctx.fillStyle = "#ccff00";
+      ctx.shadowColor = "#ccff00";
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(this.tennisBall.x, this.tennisBall.y, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.2;
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.arc(this.tennisBall.x, this.tennisBall.y, 4, 0, Math.PI);
+      ctx.stroke();
       ctx.restore();
     }
   }
 
+  // ==========================================
+  // 3. MAYA'S REAL JURASSIC FOSSIL DIG SITE
+  // ==========================================
+  private renderDinosaurDigSite(ctx: CanvasRenderingContext2D, cx: number, cy: number): void {
+    const unearthedBones = Math.min(10, this.answeredCount);
+
+    ctx.save();
+    // Excavation Trench Border
+    ctx.fillStyle = "#1e1408";
+    ctx.strokeStyle = "#f59e0b";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 78, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Unearthed T-Rex Skeleton Segments
+    ctx.fillStyle = "#fef08a";
+    ctx.shadowColor = "#f59e0b";
+    ctx.shadowBlur = 12;
+
+    // Skull
+    if (unearthedBones >= 1) {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 26, 22, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Spine & Ribs
+    if (unearthedBones >= 3) {
+      ctx.fillRect(cx - 4, cy - 10, 8, 35);
+      for (let r = 0; r < 4; r++) {
+        ctx.fillRect(cx - 16, cy - 5 + r * 8, 32, 3);
+      }
+    }
+    // Tail
+    if (unearthedBones >= 6) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 25);
+      ctx.lineTo(cx + 25, cy + 45);
+      ctx.lineTo(cx + 36, cy + 42);
+      ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.font = "bold 15px monospace";
+    ctx.fillText(`${unearthedBones}/10 BONES UNEARTHED`, cx, cy + 62);
+    ctx.restore();
+  }
+
+  // ==========================================
+  // 4. LEO'S COSMIC ORBITAL DOCKING
+  // ==========================================
+  private renderSpaceStation(ctx: CanvasRenderingContext2D, cx: number, cy: number): void {
+    ctx.save();
+    ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+    ctx.strokeStyle = this.theme.accentColor;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = this.theme.accentColor;
+    ctx.shadowBlur = 10;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 48, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Solar Wings
+    ctx.fillStyle = "#38bdf8";
+    ctx.fillRect(cx - 85, cy - 6, 32, 12);
+    ctx.fillRect(cx + 53, cy - 6, 32, 12);
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // ==========================================
+  // PLAYER ACTOR RENDERING
+  // ==========================================
   private renderPlayerActor(ctx: CanvasRenderingContext2D): void {
     ctx.save();
     ctx.translate(this.player.x, this.player.y + Math.sin(this.player.idlePhase) * 2);
     ctx.rotate(this.player.angle + Math.PI / 2 + this.player.twirlAngle);
 
     if (this.theme.id === "cooking") {
-      // ==========================================
-      // STAINLESS STEEL FORK WITH TWIRLING NOODLES
-      // ==========================================
-      // Fork Handle
+      // 🍴 Polished Stainless Steel Fork
       ctx.fillStyle = "#94a3b8";
-      ctx.strokeStyle = "#475569";
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(-3, 8, 6, 36);
+      ctx.fillRect(-3.5, 10, 7, 36);
 
-      // Fork Neck & Base
       ctx.fillStyle = "#cbd5e1";
       ctx.beginPath();
-      ctx.moveTo(-10, 8);
-      ctx.lineTo(10, 8);
-      ctx.lineTo(6, -6);
-      ctx.lineTo(-6, -6);
+      ctx.moveTo(-11, 10);
+      ctx.lineTo(11, 10);
+      ctx.lineTo(7, -8);
+      ctx.lineTo(-7, -8);
       ctx.closePath();
       ctx.fill();
-      ctx.stroke();
 
       // 4 Fork Tines
       ctx.fillStyle = "#f8fafc";
       for (let i = 0; i < 4; i++) {
-        const xOffset = -8 + i * 5;
-        ctx.fillRect(xOffset, -24, 2.5, 18);
+        ctx.fillRect(-9 + i * 5.5, -26, 2.5, 20);
       }
 
       // Twirled Spaghetti on Fork if Submitting
       if (this.state === "SUBMITTING") {
         ctx.fillStyle = "#facc15";
         ctx.beginPath();
-        ctx.arc(0, -16, 12, 0, Math.PI * 2);
+        ctx.arc(0, -16, 13, 0, Math.PI * 2);
         ctx.fill();
       }
+    } else if (this.theme.id === "tennis") {
+      // 🎾 Lena's Tennis Racket with String Mesh
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(-3, 12, 6, 28); // Grip
+
+      ctx.strokeStyle = "#4ade80";
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.ellipse(0, -12, 16, 22, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Racket Strings
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.lineWidth = 1;
+      for (let x = -10; x <= 10; x += 5) {
+        ctx.beginPath();
+        ctx.moveTo(x, -28);
+        ctx.lineTo(x, 4);
+        ctx.stroke();
+      }
     } else if (this.theme.id === "dinosaurs") {
-      // Archeological Field Brush
+      // 🦕 Archeology Field Brush
       ctx.fillStyle = "#78350f";
       ctx.fillRect(-4, 0, 8, 30);
       ctx.fillStyle = "#d97706";
       ctx.fillRect(-8, -12, 16, 12);
       ctx.fillStyle = "#fef3c7";
       ctx.fillRect(-10, -26, 20, 14);
-    } else if (this.theme.id === "tennis") {
-      // Tennis Racket
-      ctx.strokeStyle = "#4ade80";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.ellipse(0, -12, 14, 18, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = "#78350f";
-      ctx.fillRect(-3, 6, 6, 24);
     } else {
-      // Vector Starship
-      ctx.fillStyle = this.theme.playerColor;
+      // 🚀 Vector Starship
+      ctx.fillStyle = "#38bdf8";
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
-      ctx.shadowColor = this.theme.accentColor;
-      ctx.shadowBlur = 10;
-
       ctx.beginPath();
       ctx.moveTo(0, -this.player.size);
       ctx.lineTo(this.player.size * 0.75, this.player.size);
@@ -808,11 +846,6 @@ export class OpenGameArena {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath();
-      ctx.arc(0, -this.player.size * 0.25, 4, 0, Math.PI * 2);
-      ctx.fill();
     }
 
     ctx.restore();
@@ -847,7 +880,6 @@ export class OpenGameArena {
       ctx.fillText(`✦  ${a} ${op} ${b} = ?`, w / 2, bannerY + bannerH / 2);
     }
 
-    // Feedback Overlay
     if (this.feedbackMessage) {
       ctx.fillStyle = this.feedbackIsGentle ? "#fbbf24" : "#4ade80";
       ctx.font = "bold 16px 'Inter', system-ui, sans-serif";
