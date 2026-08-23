@@ -82,12 +82,14 @@ def main():
     global DB
     parser = argparse.ArgumentParser(description="Live web view of orbit.db")
     parser.add_argument("--db", type=Path, default=DB, help="path to the SQLite file")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="host to bind to")
     parser.add_argument("--port", type=int, default=8899)
     args = parser.parse_args()
     DB = args.db
-    print(f"orbit.db view on http://127.0.0.1:{args.port} (reading {DB})")
-    ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
+    print(f"orbit.db view on http://{args.host}:{args.port} (reading {DB})")
+    ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
 
 
 if __name__ == "__main__":
     main()
+
