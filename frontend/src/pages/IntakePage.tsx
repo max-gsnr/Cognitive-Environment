@@ -129,7 +129,7 @@ export function IntakePage() {
         }
       );
       if (created && created.profile_id) {
-        navigate(`/profiles/${created.profile_id}`);
+        navigate(`/play/${created.profile_id}/addition`);
       } else {
         navigate("/");
       }
