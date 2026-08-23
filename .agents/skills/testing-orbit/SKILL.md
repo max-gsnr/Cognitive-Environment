@@ -100,7 +100,11 @@ NULL (the dashboard shows "—"). How to make each value move on camera:
   `error_class → movement`).
 - Loop A (app/adaptation.py, app/ability.py) is rating-based with a 0.75-rung deadband, so
   a single correct answer usually **holds** the tier; expect 3-4 answers before
-  `subject_mastery.difficulty_vector` visibly changes. Reliable, quick demonstrations:
+  `subject_mastery.difficulty_vector` visibly changes. To make the Difficulty Path chart actually
+  step, the seeded `difficulty_vector` must be a **real ladder rung above the floor** (e.g.
+  `{digits: 2, magnitude: "low_double"}` for subtraction); an invented vector such as
+  `{digits: 1, magnitude: "mid_double"}` silently resolves to rating 0 and the chart stays flat at
+  "moved 0 times". Reliable, quick demonstrations:
   two wrong answers in a row → "rest item" (much easier question, vector drops); a fast
   off-by-one → `counting_slip` and the *same* question is redrawn; `a - b` typed for
   `a + b` → `operator_confusion` and the vector is unchanged.
@@ -120,6 +124,52 @@ NULL (the dashboard shows "—"). How to make each value move on camera:
   "Make this the live version" button (writes a `rollback` audit row) and the play page
   renders the game in an iframe.
 - Audit log page `/audit` renders `audit_log` rows with payloads — a good closing shot.
+
+## Testing the analytics dashboards (Session Monitor / Release Impact / Game Build Log)
+- `.env` is **optional**: `app/config.py` already defaults `DATABASE_URL` to `sqlite:///./orbit.db`,
+  so the backend starts without one. (The `cp .env.example .env` step above only matters if you
+  actually create the file.)
+- Analytics endpoints 404 ("no mastery row for this profile and skill") without a
+  `SubjectMastery` row — seed one per skill you intend to view, and note the profile fields are
+  `leniency_band`, `restlessness_interpretation`, `difficulty_floor`, `session_length`.
+- After `rm -f orbit.db` you must **restart uvicorn as well as vite** — the running server holds
+  the deleted file's inode and every freshly seeded profile 404s until it restarts. After any
+  branch switch, kill the existing vite too or it silently serves the old bundle.
+- Dashboard CSS may live in `frontend/src/analytics/dashboard.css`, imported from
+  `frontend/src/main.tsx`, separate from `frontend/src/styles.css` (main's theme PRs keep
+  rewriting `styles.css` wholesale). If analytics cards look unstyled after a merge, check that
+  import first.
+- Seed demo data from the profile page buttons rather than curl: "Seed practice history (demo)",
+  "Seed two versions of play (demo)" (release impact) and "Seed a version history (demo)"
+  (Game Build Log). Equivalent endpoints: `POST /demo/seed-release-impact`,
+  `POST /demo/seed-evolution` with `{profile_id, skill_id}`.
+- The profile page is long and mouse-wheel scrolling is sometimes swallowed by the scroll
+  container; if a wheel scroll does nothing, drag the window scrollbar (right edge) instead, and
+  Ctrl+Minus (80%) will fit an over-long dashboard section into one screenshot. Whether a section
+  fits at 100% zoom changes between revisions — measure it rather than assuming, e.g.
+  `document.querySelector('.console-detail')?.getBoundingClientRect().height` vs `innerHeight`,
+  and report the two numbers.
+- The Game Build Log hides secondary detail behind native `<details>` elements (rule ladder +
+  recorded figures, the agent-vs-ours check matrix, provenance, and the rule-set/policy table
+  under the run list). They are keyboard reachable: Tab to the `<summary>` and press Enter. Note
+  the checks disclosure label is generated from `version.checks.length` while the matrix renders
+  one row per **unique** check name, so the label can overcount (e.g. "All 10 checks" over a
+  9-row table) — verify the count against the rendered rows, not the label.
+- Selecting a different run resets every disclosure to closed; re-open the one you need before
+  screenshotting.
+- A version whose payload has no `trigger.ladder` / `trigger.measured` (the first build, "no
+  telemetry") is the guard path: select it on a **fresh load** and check the console for
+  `Cannot read properties of undefined (reading 'length')` from `EvolutionLog.tsx`.
+- Build Log responsive behaviour: at ~1240px it keeps the two-column run-list/detail layout (it
+  does not stack) and only collapses to one column near ~900px. Check
+  `documentElement.scrollWidth === clientWidth` for horizontal overflow at each width.
+- To prove the Session Monitor refreshes on WRONG answers, watch the "N of the last M" note and
+  the band-chart dot count — those can only change via a re-fetch. Session progress
+  ("n / 10 Completed") intentionally advances only on correct answers.
+- For a clean v1-vs-v2 Release Impact read, be aware unversioned live play forms a "Before"
+  card; the comparison itself should still be labelled `v1 → v2`. Focus is stored 0-100 and the
+  dashboards divide by 100 — a four-digit percentage means that scaling regressed.
+- Live Devin generation / iteration cannot be exercised without `DEVIN_API_KEY`; use the seeders.
 
 ## Blocked without secrets
 - `OPENAI_API_KEY`: intake interview (`/intake`), profile creation.

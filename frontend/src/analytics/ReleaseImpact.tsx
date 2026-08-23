@@ -56,9 +56,17 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
     );
   }
 
-  const before = data.versions[0];
-  const after = data.versions[data.versions.length - 1];
-  const single = data.versions.length < 2;
+  // Compare shipped versions to each other. Play recorded before the game was
+  // versioned arrives as an unversioned "Before" group, and using it as the
+  // baseline hides v1 entirely: the release the AI actually made would then
+  // never appear in the comparison.
+  const shipped = data.versions.filter((version) => version.version !== null);
+  const after = shipped[shipped.length - 1] ?? data.versions[data.versions.length - 1];
+  const before =
+    shipped.length >= 2
+      ? shipped[shipped.length - 2]
+      : data.versions.find((version) => version !== after) ?? after;
+  const single = before === after;
   const trend = data.timeline.map((point) => ({
     at: point.at,
     group: point.version === null ? "baseline" : `v${point.version}`,
@@ -161,7 +169,10 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
       </div>
 
       <div className="stat-grid">
-        {data.versions.map((version) => (
+        {/* Only the shipped versions get a card once there are any: an unversioned
+            "Before" group is play from before the game was versioned, and it is not
+            a release, so showing it beside v1 and v2 reads as a third version. */}
+        {(shipped.length ? shipped : data.versions).map((version) => (
           <Stat
             key={version.label}
             label={`${version.label} — ${version.sessions} sitting${
@@ -175,7 +186,7 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
                   } change`
                 : `${version.questions} questions, challenge fit ${pct(version.challenge_fit)}`
             }
-            tone={version === data.versions[data.versions.length - 1] ? "good" : "neutral"}
+            tone={version === after ? "good" : "neutral"}
           />
         ))}
       </div>

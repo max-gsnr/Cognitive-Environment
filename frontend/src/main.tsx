@@ -4,6 +4,9 @@ import { RouterProvider, createBrowserRouter } from "react-router-dom";
 
 import { Shell } from "./Shell";
 import "./styles.css";
+// Kept out of styles.css on purpose: the theme file is rewritten wholesale by
+// the art passes, and it has twice taken the dashboards' styles with it.
+import "./analytics/dashboard.css";
 import { AuditPage } from "./pages/AuditPage";
 import { GeneratePage } from "./pages/GeneratePage";
 import { IntakePage } from "./pages/IntakePage";

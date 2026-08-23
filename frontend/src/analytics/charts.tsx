@@ -394,9 +394,14 @@ export function TrendChart({
   const yFor = (value: number) => pad.top + plot.h * (1 - clamp(value));
   const xFor = (i: number) =>
     pad.left + (points.length < 2 ? plot.w / 2 : (plot.w * i) / (points.length - 1));
+  // Only a version boundary is a release. Unversioned sittings can appear
+  // anywhere in the log, and marking them read as "baseline shipped" after v2.
   const breaks = points
     .map((point, i) => ({ i, point }))
-    .filter(({ i, point }) => i > 0 && points[i - 1].group !== point.group);
+    .filter(
+      ({ i, point }) =>
+        i > 0 && points[i - 1].group !== point.group && point.group !== "baseline"
+    );
 
   return (
     <svg

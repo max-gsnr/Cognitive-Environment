@@ -134,8 +134,9 @@ export function PlayPage() {
         </div>
       </div>
 
-      {/* The game and the dashboard sit side by side: a judge should be able to
-          watch a dot land in the target band as the child answers. */}
+      {/* The game keeps a stage of its own: the page widens to the viewport and
+          the monitor takes a fixed rail out of the new width, so adding the
+          dashboard never narrows the canvas. */}
       <div className="play-grid">
         <div className="play-main">
           {playMode === "iframe" && liveGame?.code_path ? (
