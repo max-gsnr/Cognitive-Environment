@@ -199,7 +199,7 @@ function VersionDetail({ version }: { version: EvolutionVersion }) {
   const ladder = trigger.ladder ?? [];
   const measured = trigger.measured ?? [];
   const fired = ladder.find((rule) => rule.outcome === "fired");
-  const allChecks = version.checks ?? [];
+  const allChecks = getChecksArray(version);
   const clashes = allChecks.filter(
     (check) => check.source === "ours" && check.verdict === "fail"
   );
@@ -592,19 +592,36 @@ function outcomeTone(outcome: Ladder[number]["outcome"]): string {
   return outcome === "fired" ? "good" : "neutral";
 }
 
+function getChecksArray(version: EvolutionVersion | undefined): EvolutionVersion["checks"] {
+  if (!version) return [];
+  const raw = (version as unknown as { checks?: unknown }).checks;
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === "object" && Array.isArray((raw as { checks?: unknown }).checks)) {
+    return (raw as { checks: { name?: string; label?: string; passed?: boolean; detail?: string }[] }).checks.map((c) => ({
+      name: c.name || "check",
+      label: c.label || c.name || "check",
+      source: "ours" as const,
+      verdict: (c.passed ? "pass" : "fail") as "pass" | "fail",
+      detail: c.detail || null,
+    }));
+  }
+  return [];
+}
+
 function passCount(version: EvolutionVersion): number {
-  return count(version.checks ?? [], "pass");
+  return count(getChecksArray(version), "pass");
 }
 
 function failCount(version: EvolutionVersion): number {
-  return count(version.checks ?? [], "fail");
+  return count(getChecksArray(version), "fail");
 }
 
 function count(
-  checks: EvolutionVersion["checks"] | undefined,
+  checks: unknown,
   verdict: EvolutionVersion["checks"][number]["verdict"]
 ): number {
-  return (checks ?? []).filter((check) => check.verdict === verdict).length;
+  const arr = Array.isArray(checks) ? checks : [];
+  return arr.filter((check) => check.verdict === verdict).length;
 }
 
 function verdictTone(verdict: EvolutionVersion["checks"][number]["verdict"]): string {
