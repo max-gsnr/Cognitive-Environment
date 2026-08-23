@@ -283,7 +283,7 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
       points: [],
       band_low: 0.65,
       band_high: 0.85,
-      questions: 10,
+      questions: 0,
       challenge_fit: 82.5,
       success_rate: 80.0,
       on_pace_rate: 90.0,
