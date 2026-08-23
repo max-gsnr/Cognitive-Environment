@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Leo's Space Docking Odyssey</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="stage">
+      <!-- Title Screen Panel -->
+      <section id="title-screen" class="panel">
+        <h1>✦ Leo's Space Docking Odyssey ✦</h1>
+        <p class="lede">Type the orbital math coordinates to dock your star pods safely!</p>
+        <button id="start-btn" class="primary">Launch Mission</button>
+      </section>
+
+      <!-- Play Panel -->
+      <section id="play-screen" class="panel" hidden>
+        <div id="progress" class="progress-bar" aria-label="Mission Progress"></div>
+        <div id="problem" class="equation-banner" aria-live="polite">✦ ? + ? = ?</div>
+
+        <div id="canvas-container">
+          <canvas id="game-canvas" width="800" height="400"></canvas>
+        </div>
+
+        <div class="input-controls">
+          <form id="answer-form" class="input-row">
+            <label for="answer-input" class="visually-hidden">Math Coordinates:</label>
+            <input
+              id="answer-input"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="4"
+              placeholder="0"
+              autocomplete="off"
+              required
+            />
+            <button id="submit-btn" type="submit" class="primary">Dock (Enter)</button>
+          </form>
+
+          <div id="feedback" class="feedback" aria-live="polite"></div>
+
+          <button id="report-btn" class="report-btn" type="button">Report a problem</button>
+
+          <div id="report-dialog" class="report-dialog" hidden>
+            <label for="report-text">What went wrong?</label>
+            <textarea id="report-text" rows="2" placeholder="Tell us what happened..."></textarea>
+            <div class="report-actions">
+              <button id="report-cancel" type="button">Cancel</button>
+              <button id="report-send" type="button" class="primary">Send</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Victory Screen Panel -->
+      <section id="victory-screen" class="panel" hidden>
+        <h2>🏆 All Star Pods Docked! 🏆</h2>
+        <p id="victory-stats" class="lede">Great job, Leo! Mission complete.</p>
+        <button id="replay-btn" class="primary">Play Next Mission</button>
+      </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="./config.js"></script>
+    <script src="./telemetry.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
