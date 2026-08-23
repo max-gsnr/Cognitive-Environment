@@ -12,6 +12,9 @@ export function PlayPage() {
   const [question, setQuestion] = useState<Question | null>(null);
   const [lastResult, setLastResult] = useState<AttemptResult | null>(null);
   const [answered, setAnswered] = useState(0);
+  // Every attempt, right or wrong. `answered` counts only correct ones, and the
+  // monitor has to redraw exactly when a child is getting things wrong.
+  const [attempts, setAttempts] = useState(0);
   const [score, setScore] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
@@ -150,7 +153,10 @@ export function PlayPage() {
               gameId={liveGame?.id ?? null}
               gameVersion={liveGame?.version ?? null}
               onQuestionLoaded={(q) => setQuestion(q)}
-              onAttemptResult={(res) => setLastResult(res)}
+              onAttemptResult={(res) => {
+                setLastResult(res);
+                setAttempts((count) => count + 1);
+              }}
               onScoreUpdate={(s, a) => {
                 setScore(s);
                 setAnswered(a);
@@ -182,7 +188,7 @@ export function PlayPage() {
             profileId={profileId}
             skillId={skillId}
             childName={detail?.profile.name ?? ""}
-            refreshKey={answered}
+            refreshKey={attempts}
           />
         </aside>
       </div>
