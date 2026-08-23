@@ -59,6 +59,15 @@ def submit_attempt(
     )
     movement = decision.movement
 
+    cursor_velocity = (
+        round(body.cursor_velocity_px_s, 2)
+        if body.cursor_velocity_px_s is not None
+        else None
+    )
+    jitter = round(body.jitter_ratio, 2) if body.jitter_ratio is not None else None
+    focus = round(body.focus_score, 2) if body.focus_score is not None else None
+    baseline_rounded = round(baseline, 2) if baseline is not None else None
+
     attempt = Attempt(
         profile_id=body.profile_id,
         skill_id=body.skill_id,
@@ -71,11 +80,11 @@ def submit_attempt(
         difficulty_vector_snapshot=vector,
         tier_key=tier,
         latency_to_submit_ms=body.latency_to_submit_ms,
-        cursor_velocity_px_s=body.cursor_velocity_px_s,
-        jitter_ratio=body.jitter_ratio,
+        cursor_velocity_px_s=cursor_velocity,
+        jitter_ratio=jitter,
         idle_time_ms=body.idle_time_ms,
         distraction_events=body.distraction_events,
-        focus_score=body.focus_score,
+        focus_score=focus,
     )
     session.add(attempt)
     mastery.difficulty_vector = decision.vector
@@ -86,13 +95,13 @@ def submit_attempt(
         is_correct=body.answer_given == correct_answer,
         error_class=movement.error_class,
         updated_difficulty_vector=decision.vector,
-        baseline_ms=baseline,
+        baseline_ms=baseline_rounded,
         movement=movement.direction,
         repeat_tier=movement.repeat_tier,
-        ability_rating=round(decision.rating, 1),
-        expected_success=round(decision.expected_success, 3),
-        focus_score=body.focus_score,
-        jitter_ratio=body.jitter_ratio,
+        ability_rating=round(decision.rating, 2),
+        expected_success=round(decision.expected_success, 2),
+        focus_score=focus,
+        jitter_ratio=jitter,
         idle_time_ms=body.idle_time_ms,
     )
 
