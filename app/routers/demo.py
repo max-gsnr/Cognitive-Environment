@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+import random
 import time
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app import audit
+from app import audit, difficulty
 from app.config import settings
 from app.db import get_session
-from app.models import Game
-from app.schemas import SeedPostHogRequest
+from app.models import Attempt, ChildProfile, Game, SubjectMastery
+from app.schemas import SeedHistoryRequest, SeedPostHogRequest
 
 router = APIRouter(tags=["demo"])
 
@@ -77,6 +79,67 @@ def seed_posthog_events(session: Session, game_id: str) -> int:
         payload={"game_id": game_id, "event_count": len(batch)},
     )
     return len(batch)
+
+
+# Enough correct attempts at the current tier that the latency baseline is real
+# (app/baseline.py needs five samples inside three days before pace can move
+# anything). Without this the demo's "correct but slow" beat never fires.
+HISTORY_ATTEMPTS = 30
+HISTORY_LATENCY_MS = 4200
+
+
+@router.post("/demo/seed-history")
+def seed_history(
+    body: SeedHistoryRequest, session: Session = Depends(get_session)
+) -> dict[str, int]:
+    """Give a profile a believable at-pace past so the baseline has samples."""
+    profile = session.get(ChildProfile, body.profile_id)
+    if profile is None:
+        raise HTTPException(404, "profile not found")
+    mastery = session.get(SubjectMastery, (body.profile_id, body.skill_id))
+    if mastery is None:
+        raise HTTPException(404, "no mastery row for this profile and skill")
+
+    vector = mastery.difficulty_vector
+    tier = difficulty.tier_key(vector)
+    rng = random.Random(f"{body.profile_id}:{body.skill_id}")
+    now = datetime.now(UTC)
+
+    for index in range(HISTORY_ATTEMPTS):
+        question = difficulty.next_question(vector, body.skill_id, rng)
+        answer = question["correct_answer"]
+        session.add(
+            Attempt(
+                profile_id=body.profile_id,
+                skill_id=body.skill_id,
+                operands=question["operands"],
+                operator=question["operator"],
+                answer_given=answer,
+                correct_answer=answer,
+                is_correct=True,
+                error_class="correct",
+                difficulty_vector_snapshot=vector,
+                tier_key=tier,
+                latency_to_submit_ms=HISTORY_LATENCY_MS + rng.randint(-600, 600),
+                # Spread over the last two days so every row sits inside the
+                # baseline's three-day window.
+                created_at=now - timedelta(minutes=90 * (HISTORY_ATTEMPTS - index)),
+            )
+        )
+
+    audit.record(
+        session,
+        actor="system",
+        action="history_seeded",
+        payload={
+            "profile_id": body.profile_id,
+            "skill_id": body.skill_id,
+            "attempts": HISTORY_ATTEMPTS,
+            "tier_key": tier,
+        },
+    )
+    session.commit()
+    return {"seeded": HISTORY_ATTEMPTS}
 
 
 @router.post("/demo/seed-posthog")

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { Profile, ProfileDetail, api } from "../api";
+import { GameState, GameSummary, Profile, ProfileDetail, api } from "../api";
 
 const SKILLS = ["addition", "subtraction"] as const;
 
@@ -10,6 +10,7 @@ export function ProfilePage() {
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [iterating, setIterating] = useState<GameState | null>(null);
 
   const load = useCallback(() => {
     api
@@ -30,6 +31,32 @@ export function ProfilePage() {
         setNote("");
         load();
       })
+      .catch((cause: Error) => setError(cause.message));
+
+  // Demo-only: seed the telemetry Devin will read, start the iteration session,
+  // then poll it so the before/after lands on this page without a refresh.
+  const runIteration = async (gameId: string) => {
+    try {
+      const started = await api.post<{ game_id: string }>(`/games/${gameId}/iterate`, {
+        demo_mode: true,
+      });
+      let state = await api.get<GameState>(`/games/${started.game_id}/iterate/status`);
+      setIterating(state);
+      while (state.status === "iterating") {
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+        state = await api.get<GameState>(`/games/${state.game_id}/iterate/status`);
+        setIterating(state);
+      }
+      load();
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
+  };
+
+  const seedHistory = (skillId: string) =>
+    api
+      .post("/demo/seed-history", { profile_id: profileId, skill_id: skillId })
+      .then(load)
       .catch((cause: Error) => setError(cause.message));
 
   const rollback = (gameId: string) =>
@@ -61,6 +88,9 @@ export function ProfilePage() {
               <Link to={`/profiles/${profile.id}/generate/${row.skill_id}`}>
                 <button>Generate a game</button>
               </Link>
+              <button className="secondary" onClick={() => seedHistory(row.skill_id)}>
+                Seed practice history (demo)
+              </button>
             </div>
           </div>
         ))}
@@ -167,14 +197,24 @@ export function ProfilePage() {
                   </div>
                 )}
               </div>
-              {!game.is_live && game.status === "ready" && (
-                <button className="secondary" onClick={() => rollback(game.id)}>
-                  Make this the live version
-                </button>
-              )}
+              <div className="row">
+                {game.status === "ready" && (
+                  <button className="secondary" onClick={() => runIteration(game.id)}>
+                    Run iteration (demo)
+                  </button>
+                )}
+                {!game.is_live && game.status === "ready" && (
+                  <button className="secondary" onClick={() => rollback(game.id)}>
+                    Make this the live version
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
+        {iterating && (
+          <IterationPanel state={iterating} games={detail.games} />
+        )}
       </div>
 
       <div className="card">
@@ -187,5 +227,54 @@ export function ProfilePage() {
         </ul>
       </div>
     </>
+  );
+}
+
+function IterationPanel({ state, games }: { state: GameState; games: GameSummary[] }) {
+  const previous = games.find((game) => game.version === state.version - 1) ?? null;
+  const report = state.test_report;
+  return (
+    <div className="card">
+      <h3>
+        Iteration to v{state.version} — {state.status}
+        {state.devin_status ? ` (${state.devin_status})` : ""}
+      </h3>
+      {state.status === "iterating" && (
+        <p className="muted">Devin is reading the telemetry itself. This takes a few minutes.</p>
+      )}
+      {report?.diagnosis && (
+        <p>
+          <strong>Diagnosis:</strong> {report.diagnosis}
+        </p>
+      )}
+      <div className="diff">
+        <div>
+          <h3>Before (v{previous?.version ?? state.version - 1})</h3>
+          <p className="muted">{previous?.test_report?.summary ?? "The version the child played."}</p>
+        </div>
+        <div>
+          <h3>After (v{state.version})</h3>
+          <p className="muted">{report?.before_after_diff_summary ?? report?.summary ?? "Pending."}</p>
+          <ul className="plain">
+            {(report?.changes_made ?? []).map((change) => (
+              <li key={change}>{change}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      {state.gate_results && (
+        <p className="muted">
+          Gates:{" "}
+          {Object.entries(state.gate_results)
+            .map(([gate, result]) => `${gate}: ${result}`)
+            .join(" · ")}
+        </p>
+      )}
+      {state.pr_url && (
+        <a href={state.pr_url} target="_blank" rel="noreferrer">
+          pull request
+        </a>
+      )}
+    </div>
   );
 }

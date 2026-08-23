@@ -4,7 +4,14 @@ from fastapi.testclient import TestClient
 from app import difficulty
 from app.db import SessionLocal, init_db
 from app.main import app
-from app.models import Attempt, ChildProfile, Game, SubjectMastery
+from app.models import (
+    Attempt,
+    ChildProfile,
+    Game,
+    IntakeSession,
+    SubjectMastery,
+)
+from app.routers import intake
 from app.routers.games import gates_passed
 from app.routers.intake import _restlessness
 
@@ -176,6 +183,76 @@ def test_profile_patch_records_a_diff(client, profile):
         if item["action"] == "profile_updated"
     )
     assert entry["payload"]["diff"]["session_length"]["after"] == 6
+
+
+def test_seeded_history_gives_the_tier_a_real_baseline(client, profile):
+    """Without the demo seed, 'correct but slow' cannot fire at all."""
+    before = client.post(
+        "/attempts",
+        json={
+            "profile_id": profile,
+            "skill_id": "addition",
+            "operands": [40, 30],
+            "operator": "+",
+            "answer_given": 70,
+            "latency_to_submit_ms": 15000,
+        },
+    ).json()
+    assert before["baseline_ms"] is None
+
+    seeded = client.post(
+        "/demo/seed-history", json={"profile_id": profile, "skill_id": "addition"}
+    ).json()
+    assert seeded["seeded"] == 30
+
+    after = client.post(
+        "/attempts",
+        json={
+            "profile_id": profile,
+            "skill_id": "addition",
+            "operands": [40, 30],
+            "operator": "+",
+            "answer_given": 70,
+            "latency_to_submit_ms": 15000,
+        },
+    ).json()
+    assert after["baseline_ms"] is not None
+    assert after["movement"] == "decrement"
+
+
+def test_finalize_seeds_mastery_for_both_skills(client, monkeypatch):
+    async def resolved(_prompt):
+        return {
+            "interests": ["outer space"],
+            "leniency_band": "high",
+            "restlessness_interpretation": "focus",
+            "difficulty_floor": {"addition": "double_digit"},
+            "session_length": 8,
+        }
+
+    monkeypatch.setattr(intake.openai_client, "complete_json", resolved)
+
+    with SessionLocal() as session:
+        interview = IntakeSession(
+            transcript=[{"question": f"q{n}", "answer": "a"} for n in range(10)],
+            status="in_progress",
+        )
+        session.add(interview)
+        session.commit()
+        intake_id = interview.id
+
+    profile_id = client.post(
+        f"/intake/{intake_id}/finalize", json={"name": "Leo", "age": 7}
+    ).json()["profile_id"]
+
+    with SessionLocal() as session:
+        child = session.get(ChildProfile, profile_id)
+        assert child.restlessness_interpretation == "self_regulation"
+        assert child.session_length == 8
+        rows = session.query(SubjectMastery).filter_by(profile_id=profile_id).all()
+        assert {row.skill_id for row in rows} == {"addition", "subtraction"}
+        addition = next(row for row in rows if row.skill_id == "addition")
+        assert addition.difficulty_vector["digits"] == 2
 
 
 def test_rollback_promotes_the_version_the_teacher_picked(client, profile):

@@ -132,6 +132,7 @@ def get_profile(
                 "pr_url": game.pr_url,
                 "code_path": game.code_path,
                 "gate_results": game.gate_results,
+                "test_report": game.test_report,
                 "created_at": game.created_at,
             }
             for game in games

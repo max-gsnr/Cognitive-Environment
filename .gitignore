@@ -18,3 +18,4 @@ dist/
 .entire/tmp/
 .entire/metadata/
 .entire/settings.local.json
+frontend/tsconfig.tsbuildinfo

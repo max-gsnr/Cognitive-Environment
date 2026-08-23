@@ -56,7 +56,16 @@ export type GameSummary = {
   pr_url: string | null;
   code_path: string | null;
   gate_results: Record<string, string> | null;
+  test_report: TestReport | null;
   created_at: string;
+};
+
+export type TestReport = {
+  summary?: string;
+  diagnosis?: string;
+  change_tier?: string;
+  changes_made?: string[];
+  before_after_diff_summary?: string;
 };
 
 export type ProfileDetail = {
@@ -93,7 +102,7 @@ export type GameState = {
   pr_url: string | null;
   code_path: string | null;
   gate_results: Record<string, string> | null;
-  test_report: Record<string, unknown> | null;
+  test_report: TestReport | null;
 };
 
 export type AuditEntry = {

@@ -133,6 +133,7 @@ async def finalize_intake(
 
     profile = _profile_from_resolved(resolved, body)
     session.add(profile)
+    session.flush()  # the mastery rows and the audit entry need profile.id
     _seed_mastery(session, profile)
     audit.record(
         session,

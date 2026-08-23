@@ -80,3 +80,8 @@ class ReportProblemRequest(BaseModel):
 
 class SeedPostHogRequest(BaseModel):
     game_id: str
+
+
+class SeedHistoryRequest(BaseModel):
+    profile_id: str
+    skill_id: Literal["addition", "subtraction"]

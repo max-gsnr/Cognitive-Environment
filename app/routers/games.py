@@ -54,6 +54,13 @@ STRUCTURED_OUTPUT_SCHEMA: dict[str, Any] = {
 }
 
 
+def _with_repo(prompt: str) -> str:
+    """Name the repo the session works in; the prompts themselves stay verbatim."""
+    if not settings.repo_url:
+        return prompt
+    return f"REPOSITORY: {settings.repo_url} (base branch: main)\n\n{prompt}"
+
+
 def gates_passed(gate_results: dict[str, Any] | None) -> bool:
     """Every required gate must report a pass. A missing gate is a failure."""
     if not gate_results:
@@ -104,7 +111,7 @@ async def generate_game(
     )
 
     created = await devin_client.create_session(
-        prompt=prompt,
+        prompt=_with_repo(prompt),
         tags=["orbit", "generate", body.skill_id],
         structured_output_schema=STRUCTURED_OUTPUT_SCHEMA,
         title=f"Orbit: generate {body.skill_id} v{version} for {profile.name}",
@@ -189,7 +196,7 @@ async def iterate_game(
         else None
     )
     created = await devin_client.create_session(
-        prompt=prompt,
+        prompt=_with_repo(prompt),
         tags=["orbit", "iterate", current.skill_id],
         session_secrets=session_secrets,
         structured_output_schema=STRUCTURED_OUTPUT_SCHEMA,
@@ -316,7 +323,13 @@ async def _poll(session: Session, game_id: str, action: str) -> dict[str, Any]:
     game.pr_url = output.get("pr_url") or devin_client.pull_request_url(remote)
     game.test_report = {
         key: output[key]
-        for key in ("summary", "diagnosis", "change_tier", "changes_made")
+        for key in (
+            "summary",
+            "diagnosis",
+            "change_tier",
+            "changes_made",
+            "before_after_diff_summary",
+        )
         if key in output
     } or None
 

@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { AttemptResult, ProfileDetail, Question, api } from "../api";
+import { AttemptResult, DifficultyVector, ProfileDetail, Question, api } from "../api";
 import { capture } from "../telemetry";
 
 const ENCOURAGEMENT = ["Close — try that one again.", "Have another go.", "Nearly. One more try."];
@@ -15,6 +15,8 @@ export function PlayPage() {
   const [answered, setAnswered] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
+  const [teacherView, setTeacherView] = useState(false);
+  const [lastResult, setLastResult] = useState<AttemptResult | null>(null);
   const shownAt = useRef<number>(Date.now());
 
   const liveGame = detail?.games.find((game) => game.skill_id === skillId && game.is_live) ?? null;
@@ -63,6 +65,7 @@ export function PlayPage() {
         error_class: result.error_class,
         latency_to_submit_ms: latency,
       });
+      setLastResult(result);
       setAnswered((count) => count + 1);
       if (result.is_correct) {
         setFeedback({ text: "Yes!", retry: false });
@@ -89,6 +92,45 @@ export function PlayPage() {
       .catch((cause: Error) => setError(cause.message));
   };
 
+  const teacherPanel = teacherView && (
+    <div className="card">
+      <h2>Teacher view</h2>
+      <p className="muted">Only a grown-up sees this. The child's screen is unchanged.</p>
+      <dl className="teacher-view">
+        <dt>This question</dt>
+        <dd>
+          {question
+            ? `${question.operands[0]} ${question.operator} ${question.operands[1]} = ${question.correct_answer}`
+            : "nothing drawn yet"}
+        </dd>
+        <dt>Difficulty now</dt>
+        <dd>
+          {describeVector(
+            lastResult?.updated_difficulty_vector ?? question?.difficulty_vector_snapshot,
+          )}
+        </dd>
+        <dt>Last answer</dt>
+        <dd>{lastResult ? `${lastResult.error_class} \u2192 ${lastResult.movement}` : "nothing yet"}</dd>
+        <dt>Usual pace</dt>
+        <dd>
+          {lastResult?.baseline_ms
+            ? `${Math.round(lastResult.baseline_ms / 100) / 10}s at this tier`
+            : "not enough attempts yet"}
+        </dd>
+        <dt>Live game</dt>
+        <dd>{liveGame ? `v${liveGame.version}` : "none generated yet"}</dd>
+      </dl>
+    </div>
+  );
+
+  const teacherToggle = (
+    <p>
+      <button className="secondary" onClick={() => setTeacherView((on) => !on)}>
+        {teacherView ? "Hide teacher view" : "Teacher view"}
+      </button>
+    </p>
+  );
+
   if (error) return <p className="error">{error}</p>;
 
   if (liveGame?.code_path) {
@@ -109,6 +151,8 @@ export function PlayPage() {
             Tell a grown-up
           </button>
         </div>
+        {teacherToggle}
+        {teacherPanel}
       </>
     );
   }
@@ -143,6 +187,21 @@ export function PlayPage() {
       <p className="muted">
         There is no way to lose here. Wrong answers just come back around.
       </p>
+      {teacherToggle}
+      {teacherPanel}
     </>
   );
+}
+
+function describeVector(vector: DifficultyVector | undefined): string {
+  if (!vector) return "unknown";
+  const flags = [
+    vector.carries && "carrying",
+    vector.borrows && "borrowing",
+    vector.zero_in_minuend && "zeros to borrow across",
+  ].filter(Boolean);
+  const magnitude = vector.magnitude.replace(/_/g, " ");
+  return flags.length
+    ? `${vector.digits}-digit, ${magnitude}, with ${flags.join(" and ")}`
+    : `${vector.digits}-digit, ${magnitude}`;
 }
