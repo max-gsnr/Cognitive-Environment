@@ -1,0 +1,122 @@
+{
+  "name": "orbiting_but_self_regulating",
+  "why": "The same orbiting as the bored fixture, but this child's profile says movement means focus -- so it is not evidence of boredom.",
+  "baseline_ms": 4000.0,
+  "restlessness_interpretation": "self_regulation",
+  "events": [
+    {
+      "event": "level_started",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 13000,
+        "correct": false,
+        "error_class": "unclassified"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 13000,
+        "correct": false,
+        "error_class": "unclassified"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3900,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3900,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3900,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3900,
+        "correct": true,
+        "error_class": "correct"
+      }
+    }
+  ],
+  "expected_signal": "inconclusive",
+  "expected_change_tier": "none"
+}

@@ -30,7 +30,7 @@ def submit_attempt(
 
     vector = dict(mastery.difficulty_vector)
     tier = difficulty.tier_key(vector)
-    baseline = _baseline_for_tier(session, body.profile_id, body.skill_id, tier)
+    baseline = baseline_for_tier(session, body.profile_id, body.skill_id, tier)
 
     a, b = body.operands[0], body.operands[1]
     correct_answer = a + b if body.operator == "+" else a - b
@@ -59,25 +59,25 @@ def submit_attempt(
     )
     movement = decision.movement
 
-    session.add(
-        Attempt(
-            profile_id=body.profile_id,
-            skill_id=body.skill_id,
-            operands=body.operands,
-            operator=body.operator,
-            answer_given=body.answer_given,
-            correct_answer=correct_answer,
-            is_correct=body.answer_given == correct_answer,
-            error_class=movement.error_class,
-            difficulty_vector_snapshot=vector,
-            tier_key=tier,
-            latency_to_submit_ms=body.latency_to_submit_ms,
-        )
+    attempt = Attempt(
+        profile_id=body.profile_id,
+        skill_id=body.skill_id,
+        operands=body.operands,
+        operator=body.operator,
+        answer_given=body.answer_given,
+        correct_answer=correct_answer,
+        is_correct=body.answer_given == correct_answer,
+        error_class=movement.error_class,
+        difficulty_vector_snapshot=vector,
+        tier_key=tier,
+        latency_to_submit_ms=body.latency_to_submit_ms,
     )
+    session.add(attempt)
     mastery.difficulty_vector = decision.vector
     session.commit()
 
     return AttemptResponse(
+        attempt_id=attempt.id,
         is_correct=body.answer_given == correct_answer,
         error_class=movement.error_class,
         updated_difficulty_vector=decision.vector,
@@ -104,7 +104,7 @@ def _history(
     ]
 
 
-def _baseline_for_tier(
+def baseline_for_tier(
     session: Session, profile_id: str, skill_id: str, tier: str
 ) -> float | None:
     cutoff = datetime.now(UTC) - WINDOW - timedelta(seconds=1)

@@ -1,0 +1,157 @@
+{
+  "name": "bored_on_easy_material",
+  "why": "Idle most of the session, still (no jitter), and answers that land nowhere on material already mastered -- the game has failed, not the math.",
+  "baseline_ms": 4000.0,
+  "events": [
+    {
+      "event": "level_started",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "idle_tick",
+      "properties": {}
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "repetitive_orbit"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 14000,
+        "correct": false,
+        "error_class": "unclassified"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 14000,
+        "correct": false,
+        "error_class": "unclassified"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 14000,
+        "correct": false,
+        "error_class": "unclassified"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3800,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3800,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3800,
+        "correct": true,
+        "error_class": "correct"
+      }
+    }
+  ],
+  "expected_signal": "bored_with_the_game",
+  "expected_change_tier": "presentation"
+}
