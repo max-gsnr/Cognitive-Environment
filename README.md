@@ -68,15 +68,18 @@ Two loops, deliberately separated:
 | Ships as | a row in `subject_mastery` | a gated pull request |
 
 Loop A never calls a model. `POST /attempts` classifies the answer (`borrow_omitted`,
-`carry_omitted`, `place_value_misalignment`, …), compares latency against a three-day
-per-tier baseline, and moves one axis of the difficulty vector. Loop B hands Devin the
-profile, the error breakdown, the teacher's notes and a scoped PostHog key, and only
-marks a generated game live once all four gates — schema, assertions, headless
-playthrough, render/accessibility — report a pass.
+`carry_omitted`, `place_value_misalignment`, …), updates a rating for the child, and aims
+the next question at the tier where they should get roughly 80% right — a success rate a
+child with ADHD can stay inside, rather than one correct answer buying one step harder.
+
+Loop B hands Devin the profile, the error breakdown, the teacher's notes and a scoped
+PostHog key, and only marks a generated game live once all four gates — schema,
+assertions, headless playthrough, render/accessibility — report a pass.
 
 | Piece | Where |
 | --- | --- |
-| Deterministic core | `app/difficulty.py`, `app/error_taxonomy.py`, `app/baseline.py`, `app/adaptation.py` |
+| Deterministic core | `app/difficulty.py`, `app/error_taxonomy.py`, `app/baseline.py`, `app/ability.py`, `app/adaptation.py` |
+| Policy comparison harness | `scripts/loop_a_sim.py` |
 | API | `app/routers/` (intake, profiles, attempts, games, audit, demo) |
 | Prompts, verbatim | `app/prompts.py` |
 | Teacher + child UI | `frontend/` (React, Vite) |

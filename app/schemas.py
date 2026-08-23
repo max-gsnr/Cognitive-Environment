@@ -63,6 +63,10 @@ class AttemptResponse(BaseModel):
     baseline_ms: float | None = None
     movement: str
     repeat_tier: bool = False
+    # Loop A's working estimate, and the success rate it is aiming the next
+    # question at. Exposed so a teacher can see why difficulty moved.
+    ability_rating: float | None = None
+    expected_success: float | None = None
 
 
 class GenerateGameRequest(BaseModel):
