@@ -10,7 +10,9 @@ export function ProfilePage() {
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const [iterating, setIterating] = useState<GameState | null>(null);
+  const [iterating, setIterating] = useState<{ from: GameSummary; state: GameState } | null>(
+    null,
+  );
 
   const load = useCallback(() => {
     api
@@ -35,17 +37,17 @@ export function ProfilePage() {
 
   // Demo-only: seed the telemetry Devin will read, start the iteration session,
   // then poll it so the before/after lands on this page without a refresh.
-  const runIteration = async (gameId: string) => {
+  const runIteration = async (from: GameSummary) => {
     try {
-      const started = await api.post<{ game_id: string }>(`/games/${gameId}/iterate`, {
+      const started = await api.post<{ game_id: string }>(`/games/${from.id}/iterate`, {
         demo_mode: true,
       });
       let state = await api.get<GameState>(`/games/${started.game_id}/iterate/status`);
-      setIterating(state);
+      setIterating({ from, state });
       while (state.status === "iterating") {
         await new Promise((resolve) => setTimeout(resolve, 10000));
         state = await api.get<GameState>(`/games/${state.game_id}/iterate/status`);
-        setIterating(state);
+        setIterating({ from, state });
       }
       load();
     } catch (cause) {
@@ -199,7 +201,7 @@ export function ProfilePage() {
               </div>
               <div className="row">
                 {game.status === "ready" && (
-                  <button className="secondary" onClick={() => runIteration(game.id)}>
+                  <button className="secondary" onClick={() => runIteration(game)}>
                     Run iteration (demo)
                   </button>
                 )}
@@ -212,9 +214,7 @@ export function ProfilePage() {
             </li>
           ))}
         </ul>
-        {iterating && (
-          <IterationPanel state={iterating} games={detail.games} />
-        )}
+        {iterating && <IterationPanel from={iterating.from} state={iterating.state} />}
       </div>
 
       <div className="card">
@@ -230,8 +230,7 @@ export function ProfilePage() {
   );
 }
 
-function IterationPanel({ state, games }: { state: GameState; games: GameSummary[] }) {
-  const previous = games.find((game) => game.version === state.version - 1) ?? null;
+function IterationPanel({ from, state }: { from: GameSummary; state: GameState }) {
   const report = state.test_report;
   return (
     <div className="card">
@@ -249,8 +248,8 @@ function IterationPanel({ state, games }: { state: GameState; games: GameSummary
       )}
       <div className="diff">
         <div>
-          <h3>Before (v{previous?.version ?? state.version - 1})</h3>
-          <p className="muted">{previous?.test_report?.summary ?? "The version the child played."}</p>
+          <h3>Before (v{from.version})</h3>
+          <p className="muted">{from.test_report?.summary ?? "The version the child played."}</p>
         </div>
         <div>
           <h3>After (v{state.version})</h3>

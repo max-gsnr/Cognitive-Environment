@@ -11,7 +11,7 @@ from app.models import (
     IntakeSession,
     SubjectMastery,
 )
-from app.routers import intake
+from app.routers import games, intake
 from app.routers.games import gates_passed
 from app.routers.intake import _restlessness
 
@@ -282,6 +282,35 @@ def test_rollback_promotes_the_version_the_teacher_picked(client, profile):
     with SessionLocal() as session:
         assert session.get(Game, first_id).is_live is True
         assert session.get(Game, second_id).is_live is False
+
+
+def test_iterating_an_old_version_does_not_reuse_a_version_number(
+    client, profile, monkeypatch
+):
+    async def created(**_kwargs):
+        return {"session_id": "devin-test", "url": "https://app.devin.ai/sessions/test"}
+
+    monkeypatch.setattr(games.devin_client, "create_session", created)
+
+    with SessionLocal() as session:
+        old = Game(
+            profile_id=profile, skill_id="addition", version=1, status="ready"
+        )
+        newest = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=2,
+            status="ready",
+            is_live=True,
+        )
+        session.add_all([old, newest])
+        session.commit()
+        old_id = old.id
+
+    successor_id = client.post(f"/games/{old_id}/iterate", json={}).json()["game_id"]
+
+    with SessionLocal() as session:
+        assert session.get(Game, successor_id).version == 3
 
 
 def test_only_a_gated_version_can_go_live(client, profile):

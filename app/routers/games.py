@@ -167,7 +167,9 @@ async def iterate_game(
         .limit(10)
     ).all()
 
-    new_version = current.version + 1
+    # The next number in the roster, not current + 1: iterating an older ready
+    # version must not collide with a version that already exists.
+    new_version = _next_version(session, current.profile_id, current.skill_id)
     prompt = prompts.render(
         prompts.ITERATE_PROMPT,
         profile_json=_json(profile_dict(profile)),
