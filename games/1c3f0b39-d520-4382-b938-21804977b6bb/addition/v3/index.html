@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orbit Tug</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <main id="stage">
+      <section id="intro" class="panel">
+        <h1>Orbit Tug</h1>
+        <button id="start" class="primary" type="button">Start</button>
+      </section>
+
+      <section id="play" class="panel" hidden>
+        <div id="progress" class="progress" aria-label="Questions done"></div>
+
+        <!-- The equation is drawn on the canvas as the scene's focal point; this
+             copy exists for screen readers only. -->
+        <p id="problem" class="sr-only" aria-live="polite"></p>
+
+        <form id="answer-form" autocomplete="off">
+          <label class="sr-only" for="answer">Answer</label>
+          <input
+            id="answer"
+            name="answer"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="4"
+          />
+          <button id="submit" class="primary" type="submit">Send</button>
+        </form>
+
+        <p id="feedback" class="feedback" aria-live="polite"></p>
+      </section>
+
+      <section id="done" class="panel" hidden>
+        <p class="done-mark" aria-hidden="true">✦</p>
+        <h2>All docked.</h2>
+        <button id="again" class="primary" type="button">Play again</button>
+      </section>
+    </main>
+
+    <button id="report-open" class="report" type="button">Report a problem</button>
+
+    <div id="report-dialog" class="report-dialog" hidden>
+      <label for="report-text">What went wrong?</label>
+      <textarea id="report-text" rows="3" maxlength="300"></textarea>
+      <div class="report-actions">
+        <button id="report-cancel" type="button">Close</button>
+        <button id="report-send" class="primary" type="button">Send</button>
+      </div>
+      <p id="report-status" class="report-status"></p>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="telemetry.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>

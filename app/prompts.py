@@ -135,56 +135,118 @@ the answer_submitted event so telemetry joins back to the stored attempt.
 It must NOT implement its own difficulty or correctness logic.
 The backend owns question generation and error classification.
 
-TASK
-1. Build a single self-contained game at
-   games/{profile_id}/{skill_id}/v1/ (index.html + any JS/CSS/asset
-   files, no build step -- must run served as static files).
-2. Theme it around the child's top-ranked interest ("{top_interest}") --
-   e.g. if the interest is trains, have the child combine train cars to
-   reach a target number.
-3. Apply every constraint in the profile literally. If cognitive.timer
-   is "disabled" there must be no visible countdown anywhere. If
-   emotional.fail_state is "impossible_to_lose", a wrong answer must
-   never end the game or show a failure screen -- only a gentle
-   correction, then POST /attempts and show the next question. If
-   cognitive.reward_frequency is "instant_per_action", trigger positive
-   feedback after every correct answer, not just at the end.
-4. Do not over-explain anything in the UI. A math problem is presented
-   as the problem itself, not as an instruction to add the numbers.
-   Clutter is the primary distraction risk for this population -- the
-   baseline is uncluttered, and the profile constraints add back from
-   there.
-5. Include a visible "Report a problem" button that POSTs a short
-   description to /games/{game_id}/report-problem.
-6. Instrument with PostHog (project key: {posthog_project_key}, host:
-   {posthog_host}). Emit problem_shown, answer_submitted {attempt_id,
-   correct, time_to_solve_ms, error_class} (attempt_id and error_class
-   both come back from the /attempts response -- forward them into the
-   event, do not compute them client-side), idle_tick (every 5s idle),
-   edit_event {type:
-   immediate_correction if a backspace lands under 1s after the last
-   keystroke, after_pause_correction if 2s or more}, motion_event {type:
-   micro_jitter for rapid small-radius direction reversals,
+DESIGN FRAMEWORK: PROCEDURAL 5-MODULE TRANSLATION
+Deconstruct the child's top-ranked interest ("{top_interest}") from first
+principles to build a single HTML5 Canvas (60fps) + Web Audio game. Do
+not use external image or audio assets: render all graphics procedurally
+with 2D vector primitives and synthesise all sounds with Web Audio API
+oscillators, for instant 0ms load times.
+
+1. THE ACTOR (the thematic entity)
+- Identify the central entity representing the child's interest (a tennis
+  player with a racket, a horse rider on a paddock, an astronomer with a
+  telescope, a train engineer at a switch, a chef at a counter).
+- Draw the actor procedurally on canvas from geometric shapes, styling
+  and orientation accents.
+- The actor tracks pointer interaction smoothly, with subtle inertia,
+  idle bobbing and heading alignment.
+
+2. THE INPUT AND INTERACTION (freeform production, single click action)
+- Mathematical production: the child produces the number freely through
+  an accessible, prominent numeric input field (<input type="text"
+  inputmode="numeric" pattern="[0-9]*" maxlength="4">). Do NOT generate
+  multiple-choice answer nodes or client-side distractors -- free numeric
+  production is what lets the backend classifier diagnose carry_omitted,
+  borrow_omitted and place-value slips.
+- Thematic action: submitting an answer, or tapping the scene, triggers
+  the actor's thematic action (swinging the racket to serve a glowing
+  ball, galloping a jump, firing an orbital probe, coupling a train car).
+
+3. THE TARGET AND FOCUS ANCHOR
+- Present the current arithmetic equation prominently, as the primary
+  visual focal point of the scene.
+- The thematic action connects the actor directly to the goal zone
+  (hitting the baseline, reaching the stable, docking the pod, arriving
+  at the station).
+- No extraneous floating UI, no competing distractor buttons: one focal
+  point, because divided attention is the failure mode here.
+
+4. THE PARALLAX ENVIRONMENT
+Establish atmospheric depth with three procedural canvas layers:
+- Base: deep thematic background gradient (calm, muted or
+  high-contrast according to constraints.visual.color_palette).
+- Midground: thematic surface markings (court lines and net, pasture
+  fence, orbit ring, train track).
+- Ambient motion: gentle drifting particles (dust, stars, leaves,
+  sparks) crossing the scene at low opacity.
+
+5. CONSTRAINT-GOVERNED FEEDBACK AND AUDIO SYNTHESIS
+Every visual and auditory effect MUST be governed by the profile
+constraints. The baseline is uncluttered; constraints decide what is
+switched on:
+- Screen shake: ONLY if constraints.visual.animations is not
+  "minimal_no_screen_shake". If minimal, screen shake is strictly 0ms,
+  disabled.
+- Particle bursts: ONLY if constraints.visual.particle_effects is true.
+  If false, rely on clean colour transitions and text feedback alone.
+- Audio synthesiser (Web Audio API): if constraints.audio.sfx is not
+  "none", synthesise crisp, soft UI sounds -- an action thwack or pop, a
+  pleasant major-chord chime on a correct answer, a warm low tone on an
+  incorrect one. If constraints.audio.music is false, zero continuous
+  background music.
+- No streaks: do NOT display combo streaks ("x2 Streak!") or streak
+  meters. A broken streak is a penalty state, which violates
+  emotional.fail_state "impossible_to_lose".
+- Gentle correction: if emotional.fail_state is "impossible_to_lose", a
+  wrong answer must never end the game, flash a red X, or trigger a
+  failure sound. Show a gentle banner carrying the correct answer
+  ("Almost -- it was 54. Next one."), POST /attempts, and transition
+  smoothly to the next question.
+- Timer: if constraints.cognitive.timer is "disabled" there is NO
+  visible clock, countdown bar or pacing urgency anywhere.
+
+TASK AND IMPLEMENTATION CONTRACT
+1. Self-contained static bundle: build the game at
+   games/{profile_id}/{skill_id}/v{version}/ (index.html, styles.css,
+   game.js, telemetry.js, config.js). It must run served as static files
+   with no build step.
+2. UI restraint: do not over-explain anything. Present the problem as
+   the problem, not as an instruction to add the numbers. Clutter is the
+   primary distraction risk.
+3. Problem reporting: include a visible "Report a problem" button that
+   POSTs {"description": "..."} to /games/{game_id}/report-problem.
+4. PostHog and behavioural telemetry: instrument with PostHog (project
+   key: {posthog_project_key}, host: {posthog_host}). Emit the full
+   behavioural suite -- problem_shown, answer_submitted {attempt_id,
+   correct, time_to_solve_ms, error_class} (forward attempt_id and
+   error_class verbatim from the /attempts response, do not compute them
+   client-side), idle_tick (every 5s
+   of idle time), edit_event {type: immediate_correction if a backspace
+   or edit lands under 1s after the last keystroke,
+   after_pause_correction if 2s or more}, motion_event {type:
+   micro_jitter for rapid small-radius pointer direction reversals,
    repetitive_orbit for sustained near-zero-net-displacement circular
    motion over roughly a second or more}, level_started,
-   level_completed, level_abandoned {progress_pct}. Tag every event with
+   level_completed, level_abandoned events carrying progress_pct. Tag EVERY event with
    game_id={game_id}, profile_id={profile_id}, skill_id={skill_id},
-   version=1, and the current difficulty_vector's fields flattened as
-   properties.
-7. Default session length: {session_length} questions.
+   version={version}, and the current difficulty_vector's fields
+   flattened as properties.
+5. Session length: default to {session_length} questions before
+   triggering level_completed.
 
 SHIPPING GATES -- required before you open a PR, do not skip
 - Schema validation: every question object returned by the backend
   during your test run matches {operands, operator, correct_answer,
-  difficulty_vector snapshot}
+  difficulty_vector_snapshot}
 - Assertions: no negative operands, no negative results, no operand over
-  3 digits, consistent with SKILL and the difficulty vector
+  3 digits, strictly consistent with SKILL and the difficulty vector
 - Headless playthrough: use your browser tool, play at least 3 full
   questions including one deliberately wrong answer, confirm the
-  level-complete state is reachable, confirm no console errors
+  level-complete state is reachable, confirm gentle error recovery, and
+  confirm no console errors
 - Render/accessibility: no flashing faster than 3Hz anywhere, visible
-  keyboard focus states, readable contrast, every constraint above
-  actually visible in the running game
+  keyboard focus state on the numeric input, readable contrast, and
+  every constraint in the profile visibly respected
 If ANY gate fails, do NOT open a PR -- report the failure in your
 structured output instead.
 
@@ -195,7 +257,7 @@ the PR description. Auto-merge it only if every gate passed.
 OUTPUT
 Return structured JSON (in addition to opening the PR):
 {
-  "game_path": "games/{profile_id}/{skill_id}/v1/index.html",
+  "game_path": "games/{profile_id}/{skill_id}/v{version}/index.html",
   "pr_url": "...",
   "commit_sha": "...",
   "gate_results": {"schema": "...", "assertions": "...",
