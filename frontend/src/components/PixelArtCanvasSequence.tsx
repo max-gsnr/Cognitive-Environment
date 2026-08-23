@@ -21,7 +21,7 @@ export interface PixelArtCanvasSequenceProps {
 }
 
 export function PixelArtCanvasSequence({
-  frameCount = 58,
+  frameCount = 146,
   getFrameUrl = (i) => `/sequence/frame_${String(i + 1).padStart(4, "0")}.jpg`,
   scrollDistance = "+=350%",
   pixelArtMode = true,
