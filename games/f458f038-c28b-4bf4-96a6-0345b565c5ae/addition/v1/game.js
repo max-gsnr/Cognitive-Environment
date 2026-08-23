@@ -34,12 +34,15 @@
     solved: 0,
     shownAt: 0,
     busy: false,
+    needsQuestion: false,
     live: false,
     abandonReported: false,
   };
 
   let particles = [];
   let particleFrame = null;
+  let questionRetryTimer = null;
+  const QUESTION_RETRY_DELAY_MS = 1800;
 
   /* ---------- audio: ui blips only, no music ---------- */
   let audio = null;
@@ -213,14 +216,40 @@
     return Math.round((state.index / C.SESSION_LENGTH) * 100);
   }
 
+  function clearQuestionRetry() {
+    if (questionRetryTimer !== null) {
+      window.clearTimeout(questionRetryTimer);
+      questionRetryTimer = null;
+    }
+  }
+
+  function scheduleQuestionRetry() {
+    if (!state.live || !state.needsQuestion || questionRetryTimer !== null) {
+      return;
+    }
+    questionRetryTimer = window.setTimeout(() => {
+      questionRetryTimer = null;
+      if (state.live && state.needsQuestion) nextQuestion();
+    }, QUESTION_RETRY_DELAY_MS);
+  }
+
   async function nextQuestion() {
+    if (!state.live || (state.busy && state.needsQuestion)) return;
     state.busy = true;
+    state.needsQuestion = true;
+    state.question = null;
     el.input.value = "";
+    el.problem.textContent = "";
+    drawScene();
     try {
       const question = await fetchQuestion();
       state.question = question;
+      state.needsQuestion = false;
+      clearQuestionRetry();
       state.vector = question.difficulty_vector_snapshot || {};
       T.setDifficultyVector(state.vector);
+      el.feedback.textContent = "";
+      el.feedback.className = "feedback";
       el.problem.textContent =
         question.operands[0] +
         " " +
@@ -238,6 +267,7 @@
     } catch (err) {
       el.feedback.className = "feedback is-gentle";
       el.feedback.textContent = "Taking a moment. Press Enter to try again.";
+      scheduleQuestionRetry();
     }
     state.busy = false;
     el.input.focus();
@@ -296,6 +326,9 @@
     state.solved = 0;
     state.live = true;
     state.abandonReported = false;
+    state.question = null;
+    state.needsQuestion = false;
+    clearQuestionRetry();
     particles = [];
     renderDots();
     show(el.play);
@@ -306,6 +339,8 @@
 
   function finish() {
     state.live = false;
+    state.needsQuestion = false;
+    clearQuestionRetry();
     state.question = null;
     T.stopIdleWatch();
     drawScene();
@@ -351,6 +386,10 @@
   el.form.addEventListener("submit", (event) => {
     event.preventDefault();
     if (state.busy) return;
+    if (state.needsQuestion || !state.question) {
+      el.input.focus();
+      return;
+    }
     const raw = (el.input.value || "").replace(/[^0-9]/g, "");
     if (!raw) {
       el.input.focus();
