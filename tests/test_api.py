@@ -222,6 +222,35 @@ def test_seeded_history_gives_the_tier_a_real_baseline(client, profile):
     assert after["movement"] == "hold"
 
 
+def test_seeded_history_leaves_the_demo_child_at_their_placement(client, profile):
+    """The seed exists for the baseline; it must not also promote the child."""
+
+    def tier() -> str:
+        row = next(
+            item
+            for item in client.get(f"/profiles/{profile}").json()["mastery"]
+            if item["skill_id"] == "addition"
+        )
+        return difficulty.tier_key(row["difficulty_vector"])
+
+    placement = tier()
+    client.post(
+        "/demo/seed-history", json={"profile_id": profile, "skill_id": "addition"}
+    )
+    client.post(
+        "/attempts",
+        json={
+            "profile_id": profile,
+            "skill_id": "addition",
+            "operands": [40, 30],
+            "operator": "+",
+            "answer_given": 70,
+            "latency_to_submit_ms": 3000,
+        },
+    )
+    assert tier() == placement
+
+
 def test_finalize_seeds_mastery_for_both_skills(client, monkeypatch):
     async def resolved(_prompt):
         return {
