@@ -46,7 +46,10 @@ export function ReleaseImpact({ profileId, skillId, refreshKey = 0 }: Props) {
     );
   }
 
-  // Compare shipped versions to each other.
+  // Compare shipped versions to each other. Play recorded before the game was
+  // versioned arrives as an unversioned "Before" group, and using it as the
+  // baseline hides v1 entirely: the release the AI actually made would then
+  // never appear in the comparison.
   const shipped = data.versions.filter((version) => version.version !== null);
   const after = shipped[shipped.length - 1] ?? data.versions[data.versions.length - 1];
   const before =
@@ -144,6 +147,9 @@ export function ReleaseImpact({ profileId, skillId, refreshKey = 0 }: Props) {
       </div>
 
       <div className="stat-grid">
+        {/* Only the shipped versions get a card once there are any: an unversioned
+            "Before" group is play from before the game was versioned, and it is not
+            a release, so showing it beside v1 and v2 reads as a third version. */}
         {(shipped.length ? shipped : data.versions).map((version) => (
           <Stat
             key={version.label}
@@ -179,6 +185,8 @@ export function ReleaseImpact({ profileId, skillId, refreshKey = 0 }: Props) {
         </Figure>
       )}
 
+      {/* The funnel is about the build that is live, not about both builds
+          averaged: mixing them reports a drop-off rate no version ever had. */}
       <Figure
         title={`Where Sessions End on ${after.label}`}
         why={
