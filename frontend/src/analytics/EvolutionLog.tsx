@@ -121,10 +121,10 @@ export function EvolutionLog({ profileId, skillId, refreshKey = 0 }: Props) {
                     </span>
                   </span>
                   <span className="console-run-why">
-                    {version.trigger.signal ?? "no telemetry"}
+                    {version.trigger?.signal ?? "no telemetry"}
                     <span className="console-run-tier">
                       {" → "}
-                      {version.permitted_change.allowed ?? "—"}
+                      {version.permitted_change?.allowed ?? "—"}
                     </span>
                   </span>
                   <span className="console-run-at">
@@ -140,7 +140,7 @@ export function EvolutionLog({ profileId, skillId, refreshKey = 0 }: Props) {
 
           {policy.length > 0 && (
             <Disclose summary={`The rule set (${policy.length} readings)`}>
-              <Policy ladder={policy} fired={current.trigger.signal} />
+              <Policy ladder={policy} fired={current.trigger?.signal ?? null} />
             </Disclose>
           )}
         </div>
@@ -162,7 +162,7 @@ function Policy({ ladder, fired }: { ladder: Ladder; fired: string | null }) {
       <h4>Signal → permitted change</h4>
       <table>
         <tbody>
-          {ladder.map((rule) => (
+          {(ladder ?? []).map((rule) => (
             <tr key={rule.signal} className={rule.signal === fired ? "is-current" : ""}>
               <th scope="row">{rule.signal}</th>
               <td>{rule.tier ?? "—"}</td>
@@ -186,17 +186,27 @@ function Policy({ ladder, fired }: { ladder: Ladder; fired: string | null }) {
  * still answer a follow-up question in one click.
  */
 function VersionDetail({ version }: { version: EvolutionVersion }) {
-  const { trigger, permitted_change: change, provenance } = version;
-  // An older payload, or one written before the ladder existed, simply has no
-  // rules to show -- it must not take the panel down with it.
+  const trigger = version.trigger ?? { available: false, reason: "First build", signal: null, signal_label: null, evidence: [], ladder: [], measured: [] };
+  const change = version.permitted_change ?? {
+    allowed: null,
+    allowed_label: null,
+    claimed: null,
+    claimed_label: null,
+    within_scope: null,
+    rule: null,
+  };
+  const provenance = version.provenance ?? { agent: null, prompt: null, prompt_revision: null, devin_session_id: null, pr_url: null };
   const ladder = trigger.ladder ?? [];
   const measured = trigger.measured ?? [];
   const fired = ladder.find((rule) => rule.outcome === "fired");
-  const clashes = version.checks.filter(
+  const allChecks = getChecksArray(version);
+  const clashes = allChecks.filter(
     (check) => check.source === "ours" && check.verdict === "fail"
   );
-  const agent = version.checks.filter((check) => check.source === "agent");
-  const ours = version.checks.filter((check) => check.source === "ours");
+  const agent = allChecks.filter((check) => check.source === "agent");
+  const ours = allChecks.filter((check) => check.source === "ours");
+  const changesMade = version.changes_made ?? [];
+  const blockedBy = version.blocked_by ?? [];
 
   return (
     <div className="console-detail">
@@ -303,9 +313,9 @@ function VersionDetail({ version }: { version: EvolutionVersion }) {
 
         <Step n={3} title="What it changed" note={version.diff_summary ?? undefined}>
           {version.summary && <p className="console-summary">{version.summary}</p>}
-          {version.changes_made.length ? (
+          {changesMade.length ? (
             <ul className="console-changes">
-              {version.changes_made.map((item) => (
+              {changesMade.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
@@ -346,17 +356,17 @@ function VersionDetail({ version }: { version: EvolutionVersion }) {
             ))}
           </ul>
         )}
-        {version.blocked_by.length > 0 && (
-          <p className="error">Never shipped. Failed: {version.blocked_by.join("; ")}.</p>
+        {blockedBy.length > 0 && (
+          <p className="error">Never shipped. Failed: {blockedBy.join("; ")}.</p>
         )}
         {/* Counted by name, because the matrix pairs the two sources on one row:
             `playthrough` is checked twice but is one check. */}
         <Disclose
           summary={`All ${
-            new Set(version.checks.map((check) => check.name)).size
+            new Set(allChecks.map((check) => check.name)).size
           } checks, agent beside ours`}
         >
-          <GateMatrix checks={version.checks} />
+          <GateMatrix checks={allChecks} />
         </Disclose>
       </Step>
 
@@ -582,19 +592,36 @@ function outcomeTone(outcome: Ladder[number]["outcome"]): string {
   return outcome === "fired" ? "good" : "neutral";
 }
 
+function getChecksArray(version: EvolutionVersion | undefined): EvolutionVersion["checks"] {
+  if (!version) return [];
+  const raw = (version as unknown as { checks?: unknown }).checks;
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === "object" && Array.isArray((raw as { checks?: unknown }).checks)) {
+    return (raw as { checks: { name?: string; label?: string; passed?: boolean; detail?: string }[] }).checks.map((c) => ({
+      name: c.name || "check",
+      label: c.label || c.name || "check",
+      source: "ours" as const,
+      verdict: (c.passed ? "pass" : "fail") as "pass" | "fail",
+      detail: c.detail || null,
+    }));
+  }
+  return [];
+}
+
 function passCount(version: EvolutionVersion): number {
-  return count(version.checks, "pass");
+  return count(getChecksArray(version), "pass");
 }
 
 function failCount(version: EvolutionVersion): number {
-  return count(version.checks, "fail");
+  return count(getChecksArray(version), "fail");
 }
 
 function count(
-  checks: EvolutionVersion["checks"],
+  checks: unknown,
   verdict: EvolutionVersion["checks"][number]["verdict"]
 ): number {
-  return checks.filter((check) => check.verdict === verdict).length;
+  const arr = Array.isArray(checks) ? checks : [];
+  return arr.filter((check) => check.verdict === verdict).length;
 }
 
 function verdictTone(verdict: EvolutionVersion["checks"][number]["verdict"]): string {
