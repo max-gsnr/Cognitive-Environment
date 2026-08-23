@@ -7,12 +7,20 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+class IntakeStartRequest(BaseModel):
+    name: str | None = None
+    age: int | None = None
+    neurodivergence: str | None = None
+    interests: str | None = None
+
+
 class IntakeStartResponse(BaseModel):
     intake_id: str
     question: str
     input_type: Literal["choice", "text"] = "text"
     choices: list[str] | None = None
     complete: bool = False
+    category: str | None = None
 
 
 class IntakeAnswerRequest(BaseModel):
@@ -22,6 +30,8 @@ class IntakeAnswerRequest(BaseModel):
 class IntakeFinalizeRequest(BaseModel):
     name: str
     age: int
+    neurodivergence: str | None = None
+    interests: list[str] | str | None = None
 
 
 class NoteRequest(BaseModel):
@@ -82,10 +92,10 @@ class ReportProblemRequest(BaseModel):
     description: str
 
 
-class SeedPostHogRequest(BaseModel):
-    game_id: str
-
-
 class SeedHistoryRequest(BaseModel):
     profile_id: str
-    skill_id: Literal["addition", "subtraction"]
+    skill_id: str
+
+
+class SeedPostHogRequest(BaseModel):
+    game_id: str
