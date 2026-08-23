@@ -78,7 +78,8 @@ constraint wins and the deviation gets written down in the bundle's GAME_DESIGN.
 
 ## 6. Telemetry
 
-- Emit the full suite: `problem_shown`, `answer_submitted`, `idle_tick`, `edit_event`,
+- Emit the full suite: `problem_shown`, `answer_submitted` (`attempt_id`, `correct`,
+  `time_to_solve_ms`, `error_class` forwarded verbatim from the response), `idle_tick`, `edit_event`,
   `motion_event`, `level_started`, `level_completed`, `level_abandoned`.
 - Tag every event with game/profile/skill/version and the flattened difficulty vector.
 - `level_abandoned` fires from `visibilitychange` and `pagehide`, at most once per session, with

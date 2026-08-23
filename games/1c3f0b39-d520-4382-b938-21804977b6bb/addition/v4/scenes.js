@@ -396,6 +396,7 @@
         this.callbacks.onProgress(this.answered);
         Telemetry.setDifficultyVector(result.updated_difficulty_vector);
         Telemetry.capture("answer_submitted", {
+          attempt_id: result.attempt_id,
           correct: result.is_correct,
           time_to_solve_ms: Math.round(performance.now() - started),
           error_class: result.error_class,

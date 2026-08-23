@@ -269,7 +269,7 @@ Completion copy: "That's all ten." — nothing else. It must not claim ten pods 
 wrong answer docks no pod and the copy would then contradict the ring. No stars, no percentage, no "try to beat it".
 
 Telemetry is unchanged from v3 and must keep firing: `problem_shown`, `answer_submitted`
-(`correct`, `time_to_solve_ms`, `error_class` verbatim from the response), `idle_tick` every
+(`attempt_id`, `correct`, `time_to_solve_ms`, `error_class` forwarded verbatim from the response), `idle_tick` every
 5 s idle, `edit_event` (`immediate_correction` < 1 s, `after_pause_correction` >= 2 s, scoped to
 the answer field only), `motion_event` (`micro_jitter`, `repetitive_orbit`), `level_started`,
 `level_completed`, `level_abandoned` with `progress_pct` (share of questions *answered*, not
