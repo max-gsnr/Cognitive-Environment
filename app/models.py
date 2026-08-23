@@ -106,6 +106,10 @@ class Attempt(Base):
     idle_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     distraction_events: Mapped[int | None] = mapped_column(Integer, nullable=True)
     focus_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Which build of the game the child was playing. Without this an attempt log
+    # can say how a child did but not whether shipping v2 was what changed it.
+    game_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    game_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 

@@ -7,6 +7,9 @@ interface OrbitCanvasProps {
   skillId: string;
   interests?: string[];
   sessionLength?: number;
+  /** The live generated build, stamped onto each attempt for release comparison. */
+  gameId?: string | null;
+  gameVersion?: number | null;
   onQuestionLoaded?: (q: Question) => void;
   onAttemptResult?: (result: AttemptResult) => void;
   onScoreUpdate?: (score: number, answered: number) => void;
@@ -18,6 +21,8 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
   skillId,
   interests = [],
   sessionLength = 10,
+  gameId = null,
+  gameVersion = null,
   onQuestionLoaded,
   onAttemptResult,
   onScoreUpdate,
@@ -61,6 +66,8 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
     );
 
     game.sessionLength = sessionLength;
+    game.gameId = gameId;
+    game.gameVersion = gameVersion;
     game.setAudio(audioEnabled);
     game.startLoop();
     gameRef.current = game;
@@ -69,7 +76,7 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
       game.destroy();
       gameRef.current = null;
     };
-  }, [profileId, skillId, sessionLength, selectedTheme]);
+  }, [profileId, skillId, sessionLength, selectedTheme, gameId, gameVersion]);
 
   const handleAudioToggle = () => {
     const next = !audioEnabled;

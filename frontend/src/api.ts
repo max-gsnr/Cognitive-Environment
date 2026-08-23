@@ -113,6 +113,86 @@ export type GameState = {
   test_report: TestReport | null;
 };
 
+/** One question, as the Session Monitor plots it. Computed by app/analytics.py. */
+export type SessionPoint = {
+  index: number;
+  at: string;
+  problem: string;
+  correct: boolean;
+  error_class: string;
+  expected_success: number;
+  in_band: boolean;
+  rung: number;
+  tier_label: string;
+  latency_ms: number;
+  pace_index: number | null;
+  movement: string;
+  rest_item: boolean;
+  fluency_check: boolean;
+  focus_score: number | null;
+};
+
+export type SessionMetrics = {
+  points: SessionPoint[];
+  band_low: number;
+  band_high: number;
+  questions: number;
+  challenge_fit: number;
+  success_rate: number;
+  on_pace_rate: number;
+  longest_error_run: number;
+  mean_recovery_questions: number | null;
+  tier_changes: number;
+  time_on_task_ms: number;
+  idle_ms: number;
+  focus_share: number | null;
+  mistake_mix: { error_class: string; label: string; count: number }[];
+  target_success: number;
+  session_length: number;
+  synthetic_share: number;
+};
+
+export type VersionMetrics = {
+  version: number | null;
+  label: string;
+  sessions: number;
+  questions: number;
+  questions_per_session: number;
+  completion_rate: number;
+  dropoff_rate: number;
+  challenge_fit: number;
+  success_rate: number;
+  guess_rate: number;
+  laboured_rate: number;
+  focus_share: number | null;
+  longest_error_run: number;
+  first_seen: string | null;
+  last_seen: string | null;
+  game_id?: string | null;
+  diagnosis?: string | null;
+  change_tier?: string | null;
+  changes_made?: string[];
+  dominant_signal?: string | null;
+  pr_url?: string | null;
+};
+
+export type ReleaseImpact = {
+  versions: VersionMetrics[];
+  timeline: {
+    at: string;
+    version: number | null;
+    questions: number;
+    challenge_fit: number;
+    success_rate: number;
+    focus_share: number | null;
+    completed: boolean;
+  }[];
+  band_low: number;
+  band_high: number;
+  caveats: string[];
+  synthetic_share: number;
+};
+
 export type AuditEntry = {
   id: string;
   actor: string;

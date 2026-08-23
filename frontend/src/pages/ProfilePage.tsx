@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { GameState, GameSummary, Profile, ProfileDetail, api } from "../api";
+import { ReleaseImpact } from "../analytics/ReleaseImpact";
 
 const SKILLS = ["addition", "subtraction"] as const;
 
@@ -13,6 +14,8 @@ export function ProfilePage() {
   const [iterating, setIterating] = useState<{ from: GameSummary; state: GameState } | null>(
     null,
   );
+  const [impactSkill, setImpactSkill] = useState<string>(SKILLS[0]);
+  const [impactKey, setImpactKey] = useState(0);
 
   const load = useCallback(() => {
     api
@@ -59,6 +62,12 @@ export function ProfilePage() {
     api
       .post("/demo/seed-history", { profile_id: profileId, skill_id: skillId })
       .then(load)
+      .catch((cause: Error) => setError(cause.message));
+
+  const seedReleaseImpact = (skillId: string) =>
+    api
+      .post("/demo/seed-release-impact", { profile_id: profileId, skill_id: skillId })
+      .then(() => setImpactKey((key) => key + 1))
       .catch((cause: Error) => setError(cause.message));
 
   const rollback = (gameId: string) =>
@@ -117,6 +126,25 @@ export function ProfilePage() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="impact-section">
+        <div className="impact-controls">
+          <label>
+            Release impact for
+            <select value={impactSkill} onChange={(event) => setImpactSkill(event.target.value)}>
+              {SKILLS.map((skill) => (
+                <option key={skill} value={skill}>
+                  {skill}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="secondary" onClick={() => seedReleaseImpact(impactSkill)}>
+            Seed two versions of play (demo)
+          </button>
+        </div>
+        <ReleaseImpact key={`${impactSkill}:${impactKey}`} profileId={profileId} skillId={impactSkill} />
       </div>
 
       <div className="card">

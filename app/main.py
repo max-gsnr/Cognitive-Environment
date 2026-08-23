@@ -13,7 +13,15 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.db import init_db
-from app.routers import attempts, audit_log, demo, games, intake, profiles
+from app.routers import (
+    analytics,
+    attempts,
+    audit_log,
+    demo,
+    games,
+    intake,
+    profiles,
+)
 
 
 @asynccontextmanager
@@ -40,6 +48,7 @@ app.include_router(attempts.router)
 app.include_router(games.router)
 app.include_router(demo.router)
 app.include_router(audit_log.router)
+app.include_router(analytics.router)
 
 
 os.makedirs(settings.games_root, exist_ok=True)
