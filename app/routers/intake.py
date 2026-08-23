@@ -119,7 +119,7 @@ async def answer_intake(
     transcript[-1] = {**transcript[-1], "answer": body.answer}
 
     reply = await _next_question(transcript)
-    if reply.get("complete") or len(transcript) >= 8:
+    if reply.get("complete") or len(transcript) >= 4:
         intake.transcript = transcript
         intake.status = "complete"
         session.commit()

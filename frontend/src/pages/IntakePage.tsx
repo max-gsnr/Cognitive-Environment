@@ -105,7 +105,7 @@ export function IntakePage() {
       setSelectedChoice("");
       setCustomAnswer("");
 
-      if (next.complete) {
+      if (next.complete || questionCount >= 4) {
         setStage("complete");
       } else {
         setQuestionCount((c) => c + 1);
@@ -245,7 +245,7 @@ export function IntakePage() {
       {stage === "akinator" && turn && (
         <div className="card wizard-card">
           <div className="wizard-progress-header">
-            <span className="pill">Question {questionCount} of ~5</span>
+            <span className="pill">Question {questionCount} of 4</span>
             <span className="muted">Student: {name} (Age {age}) • {neurodivergence}</span>
           </div>
 
