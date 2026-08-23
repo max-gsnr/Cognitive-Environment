@@ -17,6 +17,9 @@ SUBTRACTION = "subtraction"
 
 BAND_RANGES: dict[str, tuple[int, int]] = {
     "single": (1, 9),
+    "low_single": (1, 4),
+    "mid_single": (2, 7),
+    "high_single": (3, 9),
     "low_double": (10, 29),
     "mid_double": (30, 69),
     "high_double": (70, 99),
@@ -24,6 +27,16 @@ BAND_RANGES: dict[str, tuple[int, int]] = {
     "mid_triple": (300, 699),
     "high_triple": (700, 999),
 }
+
+def band_range_for(magnitude: str | None, digits: int = 1) -> tuple[int, int]:
+    """Safe lookup for band ranges with sensible fallbacks."""
+    if magnitude and magnitude in BAND_RANGES:
+        return BAND_RANGES[magnitude]
+    if digits == 2:
+        return BAND_RANGES["low_double"]
+    if digits == 3:
+        return BAND_RANGES["low_triple"]
+    return BAND_RANGES["single"]
 
 BANDS_BY_DIGITS: dict[int, list[str]] = {
     1: ["single"],
@@ -93,7 +106,7 @@ def satisfiable(vector: Vector, skill_id: str) -> bool:
     zero to borrow across is itself a borrow, and two addends from 70-99 always
     carry in the tens column. Asking for those yields no question at all.
     """
-    low, _ = BAND_RANGES[vector["magnitude"]]
+    low, _ = band_range_for(vector.get("magnitude"), vector.get("digits", 1))
 
     if skill_id == ADDITION:
         # The lowest pair in the band is the one least likely to carry.
@@ -194,7 +207,7 @@ def next_question(
 ) -> dict[str, Any]:
     """Generate operands from the vector. Pure: no LLM, no Devin, no database."""
     rng = rng or random.Random()
-    low, high = BAND_RANGES[vector["magnitude"]]
+    low, high = band_range_for(vector.get("magnitude"), vector.get("digits", 1))
 
     for _ in range(200):
         candidate = (
