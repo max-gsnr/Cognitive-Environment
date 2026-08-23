@@ -126,6 +126,10 @@ export class OpenGameArena {
   public profileId: string;
   public skillId: string;
   public sessionLength: number = 10;
+  // The build of the game this session is running, stamped onto every attempt so
+  // a release can be measured afterwards rather than argued about.
+  public gameId: string | null = null;
+  public gameVersion: number | null = null;
   public theme: GameTheme = THEMES.nebula;
   public soundEnabled: boolean = true;
 
@@ -467,6 +471,8 @@ export class OpenGameArena {
         hesitation_ms: hesitation,
         distraction_events: this.distractionEvents,
         focus_score: focusScore,
+        game_id: this.gameId,
+        game_version: this.gameVersion,
       });
 
       // Augment result with local biometric nuance for real-time dashboard

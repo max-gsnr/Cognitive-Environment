@@ -72,6 +72,9 @@ class AttemptRequest(BaseModel):
     hesitation_ms: int | None = None
     distraction_events: int | None = None
     focus_score: float | None = None
+    # Which build of the game posed this question, so a release can be measured.
+    game_id: str | None = None
+    game_version: int | None = None
 
 
 class AttemptResponse(BaseModel):

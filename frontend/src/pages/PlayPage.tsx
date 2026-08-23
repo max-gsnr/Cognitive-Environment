@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { AttemptResult, DifficultyVector, ProfileDetail, Question, api } from "../api";
+import { SessionMonitor } from "../analytics/SessionMonitor";
 import { OrbitCanvas } from "../game/OrbitCanvas";
 import { getThemeForInterests } from "../game/OpenGameArena";
 
@@ -36,9 +37,9 @@ export function PlayPage() {
       .catch((cause: Error) => setError(cause.message));
   };
 
-  const teacherPanel = teacherView && (
+  const rawStream = teacherView && (
     <div className="card teacher-card">
-      <h2>Teacher Telemetry & Biometric Nuance Stream</h2>
+      <h2>Raw Signal Stream</h2>
       <p className="muted">Live diagnostic stream tracking cognitive pace, cursor kinematics, and attention nuance.</p>
       
       {/* Biometric Gauges Grid (2 Decimal Precision) */}
@@ -104,7 +105,7 @@ export function PlayPage() {
   const teacherToggle = (
     <div className="teacher-toggle-bar">
       <button className="secondary" onClick={() => setTeacherView((on) => !on)}>
-        {teacherView ? "Hide teacher telemetry" : "Teacher Telemetry Inspector"}
+        {teacherView ? "Hide raw signal stream" : "Show raw signal stream"}
       </button>
       {liveGame?.code_path && (
         <button
@@ -130,44 +131,61 @@ export function PlayPage() {
         </div>
       </div>
 
-      {playMode === "iframe" && liveGame?.code_path ? (
-        <iframe
-          title="Orbit game"
-          src={`/${liveGame.code_path}`}
-          style={{ width: "100%", height: 640, border: "1px solid #e3e6ef", borderRadius: 12 }}
-        />
-      ) : (
-        <OrbitCanvas
-          profileId={profileId}
-          skillId={skillId}
-          interests={detail?.profile.interests}
-          sessionLength={sessionLength}
-          onQuestionLoaded={(q) => setQuestion(q)}
-          onAttemptResult={(res) => setLastResult(res)}
-          onScoreUpdate={(s, a) => {
-            setScore(s);
-            setAnswered(a);
-          }}
-        />
-      )}
+      {/* The game and the dashboard sit side by side: a judge should be able to
+          watch a dot land in the target band as the child answers. */}
+      <div className="play-grid">
+        <div className="play-main">
+          {playMode === "iframe" && liveGame?.code_path ? (
+            <iframe
+              title="Orbit game"
+              src={`/${liveGame.code_path}`}
+              style={{ width: "100%", height: 640, border: "1px solid #e3e6ef", borderRadius: 12 }}
+            />
+          ) : (
+            <OrbitCanvas
+              profileId={profileId}
+              skillId={skillId}
+              interests={detail?.profile.interests}
+              sessionLength={sessionLength}
+              gameId={liveGame?.id ?? null}
+              gameVersion={liveGame?.version ?? null}
+              onQuestionLoaded={(q) => setQuestion(q)}
+              onAttemptResult={(res) => setLastResult(res)}
+              onScoreUpdate={(s, a) => {
+                setScore(s);
+                setAnswered(a);
+              }}
+            />
+          )}
 
-      {/* Problem reporting */}
-      <div className="card report-card">
-        <label>
-          Something wrong with the star pod or coordinates?
-          <input
-            value={problem}
-            onChange={(event) => setProblem(event.target.value)}
-            placeholder="Tell us what happened..."
+          {/* Problem reporting */}
+          <div className="card report-card">
+            <label>
+              Something wrong with the star pod or coordinates?
+              <input
+                value={problem}
+                onChange={(event) => setProblem(event.target.value)}
+                placeholder="Tell us what happened..."
+              />
+            </label>
+            <button className="secondary" onClick={report} disabled={!problem.trim()}>
+              Tell a grown-up
+            </button>
+          </div>
+
+          {teacherToggle}
+          {rawStream}
+        </div>
+
+        <aside className="play-side">
+          <SessionMonitor
+            profileId={profileId}
+            skillId={skillId}
+            childName={detail?.profile.name ?? ""}
+            refreshKey={answered}
           />
-        </label>
-        <button className="secondary" onClick={report} disabled={!problem.trim()}>
-          Tell a grown-up
-        </button>
+        </aside>
       </div>
-
-      {teacherToggle}
-      {teacherPanel}
     </div>
   );
 }

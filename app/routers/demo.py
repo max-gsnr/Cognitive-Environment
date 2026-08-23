@@ -156,6 +156,92 @@ def seed_history(
     return {"seeded": HISTORY_ATTEMPTS}
 
 
+# Two versions of the same game, played by the same child at the same difficulty:
+# v1 loses them (short sittings, low focus, guessing), v2 holds them. The
+# difficulty is deliberately untouched across both, because that is the control
+# that makes the comparison mean anything --- if challenge fit moved too, the
+# Release Impact view says so instead of taking credit for it.
+IMPACT_BLOCKS: list[dict[str, Any]] = [
+    {"version": 1, "sittings": 3, "questions": 4, "focus": 0.41, "pace": 0.35},
+    {"version": 2, "sittings": 3, "questions": 10, "focus": 0.83, "pace": 1.0},
+]
+
+
+@router.post("/demo/seed-release-impact")
+def seed_release_impact(
+    body: SeedHistoryRequest, session: Session = Depends(get_session)
+) -> dict[str, int]:
+    """Seed two versions' worth of sittings so Release Impact has something to show.
+
+    Every row is flagged synthetic, and the dashboard reports the synthetic share
+    of what it draws, so a seeded demo cannot be mistaken for evidence.
+    """
+    profile = session.get(ChildProfile, body.profile_id)
+    if profile is None:
+        raise HTTPException(404, "profile not found")
+    mastery = session.get(SubjectMastery, (body.profile_id, body.skill_id))
+    if mastery is None:
+        raise HTTPException(404, "no mastery row for this profile and skill")
+
+    vector = mastery.difficulty_vector
+    tier = difficulty.tier_key(vector)
+    rng = random.Random(f"impact:{body.profile_id}:{body.skill_id}")
+    now = datetime.now(UTC)
+    seeded = 0
+    sitting_index = 0
+    total_sittings = sum(int(block["sittings"]) for block in IMPACT_BLOCKS)
+
+    for block in IMPACT_BLOCKS:
+        focus, pace = float(block["focus"]), float(block["pace"])
+        for _ in range(int(block["sittings"])):
+            sitting_index += 1
+            start = now - timedelta(hours=6 * (total_sittings - sitting_index + 1))
+            for step in range(int(block["questions"])):
+                question = difficulty.next_question(vector, body.skill_id, rng)
+                correct_answer = question["correct_answer"]
+                # A guessy version is wrong *and* fast; a settled one is neither.
+                guessing = pace < 0.5 and step % 2 == 1
+                answer = correct_answer + 2 if guessing else correct_answer
+                latency = int(HISTORY_LATENCY_MS * pace)
+                session.add(
+                    Attempt(
+                        profile_id=body.profile_id,
+                        skill_id=body.skill_id,
+                        operands=question["operands"],
+                        operator=question["operator"],
+                        answer_given=answer,
+                        correct_answer=correct_answer,
+                        is_correct=not guessing,
+                        error_class=error_taxonomy.classify_attempt(
+                            question["operands"], question["operator"], answer
+                        ),
+                        difficulty_vector_snapshot=vector,
+                        tier_key=tier,
+                        latency_to_submit_ms=latency + rng.randint(-300, 300),
+                        focus_score=round(focus + rng.uniform(-0.05, 0.05), 2),
+                        idle_time_ms=int(latency * (1.4 - focus)),
+                        game_version=int(block["version"]),
+                        is_synthetic=True,
+                        created_at=start + timedelta(seconds=40 * step),
+                    )
+                )
+                seeded += 1
+
+    audit.record(
+        session,
+        actor="system",
+        action="release_impact_seeded",
+        payload={
+            "profile_id": body.profile_id,
+            "skill_id": body.skill_id,
+            "attempts": seeded,
+            "versions": [block["version"] for block in IMPACT_BLOCKS],
+        },
+    )
+    session.commit()
+    return {"seeded": seeded}
+
+
 @router.post("/demo/seed-posthog")
 def seed_posthog(
     body: SeedPostHogRequest, session: Session = Depends(get_session)
