@@ -49,6 +49,8 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
     setSelectedTheme(autoKey);
   }, [interests]);
 
+  const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+
   useEffect(() => {
     if (!canvasRef.current) return;
 
@@ -57,7 +59,10 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
       profileId,
       skillId,
       {
-        onQuestionLoaded,
+        onQuestionLoaded: (q: Question) => {
+          setCurrentQuestion(q);
+          onQuestionLoaded?.(q);
+        },
         onAttemptResult,
         onScoreUpdate,
         onLevelComplete,
@@ -132,32 +137,38 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
         <canvas ref={canvasRef} className="orbit-canvas" />
       </div>
 
-      {/* Fast Input Bar / Keypad for Accessibility & Hybrid Play */}
+      {/* Centered Bottom Input Bar with High-Visibility Math Challenge */}
       <div className="game-bottom-bar">
         <form onSubmit={handleKeypadSubmit} className="hybrid-keypad-form">
-          <label htmlFor="quick-input" className="keypad-label">
-            Math Coordinates:
-          </label>
+          <div className="math-equation-badge" aria-label="Math Question">
+            <span className="math-label">SOLVE:</span>
+            <span className="math-equation">
+              {currentQuestion
+                ? `${currentQuestion.operands[0]} ${currentQuestion.operator} ${currentQuestion.operands[1]} =`
+                : "Loading... ="}
+            </span>
+          </div>
+
           <input
             id="quick-input"
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            maxLength={4}
+            maxLength={6}
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value.replace(/[^0-9]/g, ""))}
-            placeholder="Type answer..."
+            placeholder="?"
             className="keypad-input"
             autoFocus
           />
+
           <button type="submit" className="primary keypad-submit" disabled={!inputVal}>
-            Dock (Enter)
+            Submit (Enter) ▶
           </button>
         </form>
 
         <div className="controls-legend">
-          <span>🚀 <strong>Glide:</strong> Click / Tap Canvas</span>
-          <span>✦ <strong>Dock:</strong> Type Coordinates & Enter</span>
+          <span>⌨️ <strong>Type your answer & press Enter</strong> or click Submit</span>
         </div>
       </div>
     </div>
