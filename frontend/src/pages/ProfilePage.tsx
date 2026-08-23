@@ -77,25 +77,32 @@ export function ProfilePage() {
 
       <div className="card">
         <h2>Where they are now</h2>
-        {detail.mastery.map((row) => (
-          <div key={row.skill_id} className="row" style={{ justifyContent: "space-between" }}>
-            <div>
-              <strong style={{ textTransform: "capitalize" }}>{row.skill_id}</strong>
-              <div className="muted">{row.plain_language}</div>
+        <div className="mastery-list">
+          {detail.mastery.map((row) => (
+            <div key={row.skill_id} className="mastery-item-card">
+              <div className="mastery-info">
+                <div className="mastery-header-row">
+                  <strong style={{ textTransform: "capitalize", fontSize: "18px" }}>{row.skill_id}</strong>
+                  <span className="pill">Current Tier</span>
+                </div>
+                <div className="muted" style={{ marginTop: "4px", fontSize: "14px" }}>
+                  {row.plain_language}
+                </div>
+              </div>
+              <div className="mastery-actions">
+                <Link to={`/play/${profile.id}/${row.skill_id}`}>
+                  <button className="secondary">Play Game 🎮</button>
+                </Link>
+                <Link to={`/profiles/${profile.id}/generate/${row.skill_id}`}>
+                  <button>Generate a game 🛠️</button>
+                </Link>
+                <button className="secondary" onClick={() => seedHistory(row.skill_id)}>
+                  Seed practice history (demo)
+                </button>
+              </div>
             </div>
-            <div className="row">
-              <Link to={`/play/${profile.id}/${row.skill_id}`}>
-                <button className="secondary">Play</button>
-              </Link>
-              <Link to={`/profiles/${profile.id}/generate/${row.skill_id}`}>
-                <button>Generate a game</button>
-              </Link>
-              <button className="secondary" onClick={() => seedHistory(row.skill_id)}>
-                Seed practice history (demo)
-              </button>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       <div className="card">
