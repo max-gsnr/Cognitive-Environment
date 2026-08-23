@@ -53,11 +53,7 @@ fill in anything the teacher didn't actually say.
 CONVERSATION SO FAR:
 {conversation_history_json}
 
-STOP CONDITION: once you have solid coverage of every bullet above --
-minimum 10 questions, target around 15, never fewer than 10 even if
-confident earlier -- respond with {"complete": true} instead of another
-question. There is no fallback profile: the interview is not finished,
-and the child does not get a game, until this fires.
+STOP CONDITION: keep the interview fast and concise for teachers. Ask 4 to 5 high-impact questions total. After 4-5 questions, respond with {"complete": true} instead of another question.
 
 OUTPUT -- strict JSON, nothing else, every turn:
 {"complete": false, "question": "...", "input_type": "choice" | "text",

@@ -91,7 +91,7 @@ async def start_intake(
     session.commit()
 
     reply = await _next_question(initial_transcript)
-    intake.transcript = initial_transcript + [{"question": reply.get("question", "")}]
+    intake.transcript = initial_transcript + [{"question": reply.get("question", ""), "type": "dynamic"}]
     session.commit()
 
     return IntakeStartResponse(
@@ -118,8 +118,10 @@ async def answer_intake(
         raise HTTPException(409, "no question is waiting for an answer")
     transcript[-1] = {**transcript[-1], "answer": body.answer}
 
+    dynamic_count = sum(1 for t in transcript if t.get("type") == "dynamic" and "answer" in t)
     reply = await _next_question(transcript)
-    if reply.get("complete") or len(transcript) >= 8:
+
+    if reply.get("complete") or dynamic_count >= 4:
         intake.transcript = transcript
         intake.status = "complete"
         session.commit()
@@ -127,7 +129,7 @@ async def answer_intake(
             intake_id=intake.id, question="", complete=True
         )
 
-    transcript.append({"question": reply.get("question", "")})
+    transcript.append({"question": reply.get("question", ""), "type": "dynamic"})
     intake.transcript = transcript
     session.commit()
     return IntakeStartResponse(

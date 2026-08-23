@@ -70,6 +70,7 @@ const DEFAULT_PROFILES: Profile[] = [
 ];
 
 let profilesState = [...DEFAULT_PROFILES];
+let intakeStep = 1;
 
 export function handleClientFallback<T>(path: string, init?: RequestInit): T {
   // Normalize path without leading /api
@@ -183,6 +184,7 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
   if (p === "/intake/start") {
     const body = init?.body ? JSON.parse(init.body as string) : {};
     const childName = body.name || "the child";
+    intakeStep = 1;
     return {
       intake_id: `intake-${Date.now()}`,
       question: `How does ${childName} typically react when encountering a difficult arithmetic mistake?`,
@@ -198,6 +200,7 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
 
   // 6. POST /intake/:id/answer
   if (p.startsWith("/intake/") && p.endsWith("/answer")) {
+    intakeStep++;
     const questions = [
       {
         question: "When working on focused screen tasks, how does physical movement or fidgeting affect their concentration?",
@@ -225,8 +228,17 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
       },
     ];
 
-    const idx = Math.floor(Math.random() * questions.length);
-    const selected = questions[idx];
+    if (intakeStep >= 4) {
+      return {
+        intake_id: "intake-session",
+        question: "",
+        input_type: "choice",
+        choices: null,
+        complete: true,
+      } as unknown as T;
+    }
+
+    const selected = questions[intakeStep - 2] || questions[0];
 
     return {
       intake_id: "intake-session",

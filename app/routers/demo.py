@@ -162,9 +162,27 @@ def seed_history(
 # difficulty is deliberately untouched across both, because that is the control
 # that makes the comparison mean anything --- if challenge fit moved too, the
 # Release Impact view says so instead of taking credit for it.
+# wrong_every: one answer in N is wrong, so both versions sit at a comparable
+# success rate and Challenge Fit stays flat --- a version that suddenly answers
+# everything correctly reads as "the difficulty moved", which is exactly the
+# confound the view is built to expose.
 IMPACT_BLOCKS: list[dict[str, Any]] = [
-    {"version": 1, "sittings": 3, "questions": 4, "focus": 0.41, "pace": 0.35},
-    {"version": 2, "sittings": 3, "questions": 10, "focus": 0.83, "pace": 1.0},
+    {
+        "version": 1,
+        "sittings": 3,
+        "questions": 4,
+        "focus": 0.41,
+        "pace": 0.35,
+        "wrong_every": 4,
+    },
+    {
+        "version": 2,
+        "sittings": 3,
+        "questions": 10,
+        "focus": 0.83,
+        "pace": 1.0,
+        "wrong_every": 5,
+    },
 ]
 
 
@@ -184,6 +202,17 @@ def seed_release_impact(
     if mastery is None:
         raise HTTPException(404, "no mastery row for this profile and skill")
 
+    # Pressing the button twice used to double every sitting.
+    for stale in session.scalars(
+        select(Attempt).where(
+            Attempt.profile_id == body.profile_id,
+            Attempt.skill_id == body.skill_id,
+            Attempt.is_synthetic.is_(True),
+            Attempt.game_version.is_not(None),
+        )
+    ).all():
+        session.delete(stale)
+
     vector = mastery.difficulty_vector
     tier = difficulty.tier_key(vector)
     rng = random.Random(f"impact:{body.profile_id}:{body.skill_id}")
@@ -194,15 +223,17 @@ def seed_release_impact(
 
     for block in IMPACT_BLOCKS:
         focus, pace = float(block["focus"]), float(block["pace"])
+        wrong_every = int(block["wrong_every"])
         for _ in range(int(block["sittings"])):
             sitting_index += 1
             start = now - timedelta(hours=6 * (total_sittings - sitting_index + 1))
             for step in range(int(block["questions"])):
                 question = difficulty.next_question(vector, body.skill_id, rng)
                 correct_answer = question["correct_answer"]
-                # A guessy version is wrong *and* fast; a settled one is neither.
-                guessing = pace < 0.5 and step % 2 == 1
-                answer = correct_answer + 2 if guessing else correct_answer
+                # Both versions get some answers wrong; only the guessy one gets
+                # them wrong *fast*, which is what the guessing rate reads.
+                wrong = step % wrong_every == wrong_every - 1
+                answer = correct_answer + 2 if wrong else correct_answer
                 latency = int(HISTORY_LATENCY_MS * pace)
                 session.add(
                     Attempt(
@@ -212,7 +243,7 @@ def seed_release_impact(
                         operator=question["operator"],
                         answer_given=answer,
                         correct_answer=correct_answer,
-                        is_correct=not guessing,
+                        is_correct=not wrong,
                         error_class=error_taxonomy.classify_attempt(
                             question["operands"], question["operator"], answer
                         ),

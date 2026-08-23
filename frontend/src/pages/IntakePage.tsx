@@ -96,19 +96,20 @@ export function IntakePage() {
     const answerText = customAnswer.trim() || selectedChoice.trim();
     if (!answerText) return;
 
+    const currentCount = questionCount;
     void guard(async () => {
       const next = await api.post<Turn>(`/intake/${turn.intake_id}/answer`, {
         answer: answerText,
       });
 
-      setTurn(next);
       setSelectedChoice("");
       setCustomAnswer("");
 
-      if (next.complete) {
+      if (next.complete || currentCount >= 4) {
         setStage("complete");
       } else {
-        setQuestionCount((c) => c + 1);
+        setTurn(next);
+        setQuestionCount(currentCount + 1);
       }
     });
   };
@@ -245,7 +246,7 @@ export function IntakePage() {
       {stage === "akinator" && turn && (
         <div className="card wizard-card">
           <div className="wizard-progress-header">
-            <span className="pill">Question {questionCount} of ~5</span>
+            <span className="pill">Question {questionCount} of 4</span>
             <span className="muted">Student: {name} (Age {age}) • {neurodivergence}</span>
           </div>
 
