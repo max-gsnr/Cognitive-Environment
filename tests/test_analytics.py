@@ -17,7 +17,7 @@ def row(
     latency_ms: int = 6000,
     vector: dict | None = None,
     version: int | None = 1,
-    focus: float | None = 80.0,
+    focus: float | None = 0.8,
     at: datetime | None = None,
     error_class: str | None = None,
 ) -> analytics.AttemptRow:
@@ -119,7 +119,7 @@ def _two_version_log() -> list[analytics.AttemptRow]:
     """v1: three short sittings. v2: three full ones, same difficulty."""
     rows: list[analytics.AttemptRow] = []
     at = START
-    for version, sittings, length, focus in ((1, 3, 4, 40.0), (2, 3, 10, 85.0)):
+    for version, sittings, length, focus in ((1, 3, 4, 0.4), (2, 3, 10, 0.85)):
         for _ in range(sittings):
             at = at + timedelta(hours=3)
             for step in range(length):

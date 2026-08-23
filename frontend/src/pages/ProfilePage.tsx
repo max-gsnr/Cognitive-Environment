@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { GameState, GameSummary, Profile, ProfileDetail, api } from "../api";
+import { EvolutionLog } from "../analytics/EvolutionLog";
 import { ReleaseImpact } from "../analytics/ReleaseImpact";
 
 const SKILLS = ["addition", "subtraction"] as const;
@@ -64,6 +65,15 @@ export function ProfilePage() {
     api
       .post("/demo/seed-release-impact", { profile_id: profileId, skill_id: skillId })
       .then(() => setImpactKey((key) => key + 1))
+      .catch((cause: Error) => setError(cause.message));
+
+  const seedEvolution = (skillId: string) =>
+    api
+      .post("/demo/seed-evolution", { profile_id: profileId, skill_id: skillId })
+      .then(() => {
+        setImpactKey((key) => key + 1);
+        load();
+      })
       .catch((cause: Error) => setError(cause.message));
 
   const rollback = (gameId: string) =>
@@ -138,6 +148,15 @@ export function ProfilePage() {
           </button>
         </div>
         <ReleaseImpact key={`${impactSkill}:${impactKey}`} profileId={profileId} skillId={impactSkill} />
+      </div>
+
+      <div className="impact-section">
+        <div className="impact-controls">
+          <button className="secondary" onClick={() => seedEvolution(impactSkill)}>
+            Seed a version history (demo)
+          </button>
+        </div>
+        <EvolutionLog profileId={profileId} skillId={impactSkill} refreshKey={impactKey} />
       </div>
 
       <div className="card">
@@ -222,40 +241,81 @@ export function ProfilePage() {
       </div>
 
       <div className="card">
-        <h2>Game versions</h2>
+        <h2>Game versions & Devin iteration history</h2>
         {detail.games.length === 0 && <p className="muted">Nothing generated yet.</p>}
-        <ul className="plain">
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "12px" }}>
           {detail.games.map((game) => (
-            <li key={game.id} className="row" style={{ justifyContent: "space-between" }}>
-              <div>
-                <strong>
-                  {game.skill_id} v{game.version}
-                </strong>{" "}
-                <span className="pill">{game.status}</span>{" "}
-                {game.is_live && <span className="pill">live</span>}
-                {game.pr_url && (
-                  <div>
-                    <a href={game.pr_url} target="_blank" rel="noreferrer">
-                      pull request
-                    </a>
-                  </div>
-                )}
+            <div
+              key={game.id}
+              className="card"
+              style={{
+                background: game.is_live ? "rgba(37, 99, 235, 0.05)" : "#f8fafc",
+                border: game.is_live ? "2.5px solid #2563eb" : "2px solid #cbd5e1",
+                padding: "16px",
+              }}
+            >
+              <div className="row" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                <div>
+                  <strong style={{ fontSize: "16px", textTransform: "capitalize" }}>
+                    {game.skill_id} v{game.version}
+                  </strong>{" "}
+                  <span className="pill">{game.status}</span>{" "}
+                  {game.is_live ? (
+                    <span className="pill" style={{ background: "#22c55e", color: "#ffffff" }}>
+                      ★ Live Version
+                    </span>
+                  ) : (
+                    <span className="pill">Saved Previous Version</span>
+                  )}
+                  {game.pr_url && (
+                    <span style={{ marginLeft: "8px" }}>
+                      <a href={game.pr_url} target="_blank" rel="noreferrer" style={{ fontSize: "13px" }}>
+                        🔗 View GitHub PR
+                      </a>
+                    </span>
+                  )}
+                </div>
+                <div className="row" style={{ gap: "8px" }}>
+                  <Link to={`/play/${profile.id}/${game.skill_id}`}>
+                    <button className="secondary">Play Game 🎮</button>
+                  </Link>
+                  {game.status === "ready" && (
+                    <button className="secondary" onClick={() => runIteration(game)}>
+                      Run Iteration ⚡
+                    </button>
+                  )}
+                  {!game.is_live && game.status === "ready" && (
+                    <button className="secondary" onClick={() => rollback(game.id)}>
+                      Make Live 🔄
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="row">
-                {game.status === "ready" && (
-                  <button className="secondary" onClick={() => runIteration(game)}>
-                    Run iteration (demo)
-                  </button>
-                )}
-                {!game.is_live && game.status === "ready" && (
-                  <button className="secondary" onClick={() => rollback(game.id)}>
-                    Make this the live version
-                  </button>
-                )}
-              </div>
-            </li>
+
+              {game.test_report && (
+                <div style={{ marginTop: "12px", fontSize: "14px" }}>
+                  {game.test_report.diagnosis && (
+                    <p style={{ margin: "4px 0", color: "#334155" }}>
+                      <strong>Diagnosis:</strong> {game.test_report.diagnosis}
+                    </p>
+                  )}
+                  {game.test_report.before_after_diff_summary && (
+                    <p style={{ margin: "4px 0", color: "#0f766e" }}>
+                      <strong>Impact:</strong> {game.test_report.before_after_diff_summary}
+                    </p>
+                  )}
+                  {Array.isArray(game.test_report.changes_made) && game.test_report.changes_made.length > 0 && (
+                    <ul style={{ margin: "6px 0 0 20px", padding: 0 }}>
+                      {game.test_report.changes_made.map((ch, idx) => (
+                        <li key={idx} style={{ color: "#475569" }}>{ch}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
           ))}
-        </ul>
+        </div>
         {iterating && <IterationPanel from={iterating.from} state={iterating.state} />}
       </div>
 

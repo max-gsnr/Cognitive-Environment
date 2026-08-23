@@ -1,6 +1,16 @@
 import { handleClientFallback } from "./fallbackData";
 
-const BASE = import.meta.env.VITE_API_BASE ?? "/api";
+const getBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE) {
+    return import.meta.env.VITE_API_BASE;
+  }
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return "http://127.0.0.1:8000";
+  }
+  return "/api";
+};
+
+const BASE = getBaseUrl();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
@@ -108,6 +118,8 @@ export type AttemptResult = {
   baseline_ms: number | null;
   movement: string;
   repeat_tier: boolean;
+  ability_rating?: number;
+  expected_success?: number;
   focus_score?: number;
   jitter_ratio?: number;
   idle_time_ms?: number;
@@ -207,6 +219,86 @@ export type ReleaseImpact = {
   band_high: number;
   caveats: string[];
   synthetic_share: number;
+};
+
+/** One version of the game, as Loop B produced it. Computed by app/evolution.py. */
+export type EvolutionVersion = {
+  game_id: string;
+  version: number;
+  label: string;
+  created_at: string;
+  from_version: number | null;
+  state: "live" | "shipped" | "blocked" | "in_progress" | "failed";
+  state_label: string;
+  status: string;
+  is_live: boolean;
+  trigger: {
+    available: boolean;
+    reason: string | null;
+    signal: string | null;
+    signal_label: string | null;
+    event_count?: number | null;
+    evidence: { key: string; label: string; unit: string; value: number }[];
+    /** Every rule in priority order, with the threshold each one compared against. */
+    ladder: {
+      signal: string;
+      label: string;
+      tier: string | null;
+      outcome: "fired" | "no" | "not_reached";
+      terms: {
+        key: string;
+        label: string;
+        comparison: string;
+        threshold: number;
+        value: number | null;
+        joiner: string;
+        met: boolean | null;
+      }[];
+    }[];
+    measured: { key: string; label: string; value: number }[];
+  };
+  permitted_change: {
+    allowed: string | null;
+    allowed_label: string | null;
+    claimed: string | null;
+    claimed_label: string | null;
+    within_scope: boolean | null;
+    rule: string | null;
+  };
+  summary: string | null;
+  changes_made: string[];
+  diff_summary: string | null;
+  checks: {
+    name: string;
+    label: string;
+    source: "agent" | "ours";
+    verdict: "pass" | "fail" | "skipped" | "not_run";
+    detail: string | null;
+  }[];
+  checks_passed: boolean;
+  blocked_by: string[];
+  provenance: {
+    agent: string | null;
+    prompt: string | null;
+    prompt_revision: string | null;
+    devin_session_id: string | null;
+    pr_url: string | null;
+    requested_at: string | null;
+  };
+};
+
+export type EvolutionLog = {
+  versions: EvolutionVersion[];
+  summary: {
+    proposed: number;
+    shipped: number;
+    blocked: number;
+    in_progress: number;
+    live_version: number | null;
+    no_change_needed: number;
+    checked: number;
+    disagreements: number;
+  };
 };
 
 export type AuditEntry = {

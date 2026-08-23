@@ -3,7 +3,6 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 export function Shell() {
   const location = useLocation();
   const isLanding = location.pathname === "/" || location.pathname === "/landing";
-  const isPlay = location.pathname.startsWith("/play/");
 
   return (
     <div className={`shell-root ${isLanding ? "landing-mode" : "grassy-world-mode"}`}>
@@ -39,11 +38,7 @@ export function Shell() {
         </>
       )}
 
-      <main
-        className={`main-viewport ${isLanding ? "main-landing" : "main-elevated-world"}${
-          isPlay ? " main-play" : ""
-        }`}
-      >
+      <main className={`main-viewport ${isLanding ? "main-landing" : "main-elevated-world"}`}>
         <Outlet />
       </main>
 

@@ -9,7 +9,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "low",
     restlessness_interpretation: "distraction",
     difficulty_floor: { addition: "mid_double", subtraction: "low_double" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -20,7 +20,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "medium",
     restlessness_interpretation: "distraction",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -31,7 +31,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "high",
     restlessness_interpretation: "self_regulation",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -42,7 +42,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "medium",
     restlessness_interpretation: "distraction",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -53,7 +53,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "low",
     restlessness_interpretation: "self_regulation",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -64,7 +64,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "medium",
     restlessness_interpretation: "distraction",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
 ];
@@ -108,15 +108,43 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
       reported_problems: [],
       games: [
         {
-          id: `game-${profile.name.toLowerCase()}`,
+          id: `game-${profile.name.toLowerCase()}-addition-v1`,
+          skill_id: "addition",
+          version: 1,
+          status: "ready",
+          is_live: false,
+          pr_url: null,
+          code_path: `games/${profile.id}/addition/v1/index.html`,
+          gate_results: { schema: "PASS", assertions: "PASS", playthrough: "PASS", render_accessibility: "PASS" },
+          test_report: {
+            summary: `Initial baseline addition game built for ${profile.name}.`,
+            diagnosis: "Single-digit arithmetic foundation.",
+            change_tier: "content",
+            changes_made: ["Initial bespoke game generation"],
+            before_after_diff_summary: "Initial v1 baseline build.",
+          },
+          created_at: new Date(Date.now() - 86400000).toISOString(),
+        },
+        {
+          id: `game-${profile.name.toLowerCase()}-addition-v2`,
           skill_id: "addition",
           version: 2,
           status: "ready",
           is_live: true,
-          pr_url: null,
-          code_path: null,
-          gate_results: { typecheck: "PASS", tests: "PASS" },
-          test_report: { summary: "Bespoke interest game active." },
+          pr_url: "https://github.com/max-gsnr/Cognitive-Environment/pull/2",
+          code_path: `games/${profile.id}/addition/v2/index.html`,
+          gate_results: { schema: "PASS", assertions: "PASS", playthrough: "PASS", render_accessibility: "PASS" },
+          test_report: {
+            summary: `Devin autonomous iteration for ${profile.name}'s mission.`,
+            diagnosis: `${profile.name} mastered baseline practice. Devin upgraded cognitive pacing, added carry scaffolding, and stepped difficulty to mid-double digits.`,
+            change_tier: "structural",
+            changes_made: [
+              "Upgraded difficulty floor to double-digit carrying",
+              "Added multi-digit visual scaffolding and carry animations",
+              "Tightened reward pacing for ADHD attention engagement",
+            ],
+            before_after_diff_summary: "v1 (single-digit baseline) → v2 (mildly more difficult double-digit carrying + enhanced arcade feedback).",
+          },
           created_at: new Date().toISOString(),
         },
       ],
@@ -261,14 +289,19 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
       leniency_band: "medium",
       restlessness_interpretation: "distraction",
       difficulty_floor: { addition: "low_double", subtraction: "single" },
-      session_length: 10,
+      session_length: 5,
       constraints: {},
     };
     profilesState.unshift(newProfile);
     return { profile_id: newId } as unknown as T;
   }
 
-  // 8. GET /audit-log
+  // 8. POST /games/:id/rollback
+  if (p.startsWith("/games/") && p.endsWith("/rollback")) {
+    return { is_live: true, status: "ready" } as unknown as T;
+  }
+
+  // 9. GET /audit-log
   if (p === "/audit-log" || p === "/audit") {
     const audit: AuditEntry[] = [
       { id: "a1", actor: "system", action: "session_initialized", payload: { mode: "active" }, created_at: new Date().toISOString() },
@@ -277,7 +310,100 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
     return audit as unknown as T;
   }
 
-  // 9. Session metrics & release impact
+  // 10. GET /evolution
+  if (p.endsWith("/evolution")) {
+    const evo = {
+      summary: {
+        proposed: 2,
+        shipped: 2,
+        blocked: 0,
+        in_progress: 0,
+        live_version: 2,
+        no_change_needed: 0,
+        checked: 2,
+        disagreements: 0,
+      },
+      versions: [
+        {
+          game_id: "game-leo-addition-v2",
+          version: 2,
+          label: "v2",
+          created_at: new Date().toISOString(),
+          from_version: 1,
+          state: "live",
+          state_label: "Live for this child",
+          status: "ready",
+          is_live: true,
+          trigger: {
+            available: true,
+            reason: "healthy_struggle",
+            reason_label: "Working hard, and getting there",
+            signal: "healthy_struggle",
+            signal_label: "Working hard, and getting there",
+            change_tier: "structural",
+            change_tier_label: "Structure",
+            ladder: [
+              { signal: "frustration_or_bug", label: "Frustration or a bug", matched: false, tier: "presentation", evidence: [] },
+              { signal: "healthy_struggle", label: "Working hard, and getting there", matched: true, tier: "structural", evidence: [{ metric: "Accuracy", label: "Accuracy on baseline", value: 1.0, threshold: "≥ 0.85" }] },
+            ],
+            evidence: [{ metric: "Accuracy", label: "Accuracy on baseline", value: 1.0, threshold: "≥ 0.85" }],
+          },
+          scope: {
+            tier: "structural",
+            tier_label: "Structure",
+            allowed: ["theme", "mechanics", "scaffolding", "difficulty_floor"],
+            prohibited: [],
+          },
+          provenance: {
+            source_version: 1,
+            author_type: "devin",
+            devin_session_id: "devin-session-123",
+            pr_url: "https://github.com/max-gsnr/Cognitive-Environment/pull/2",
+            requested_at: new Date(Date.now() - 3600000).toISOString(),
+            prompt: "Upgrade arithmetic difficulty floor to mid-double digits with carrying",
+            prompt_revision: "v2.1",
+          },
+          report: {
+            available: true,
+            summary: "Upgraded difficulty floor to double-digit carrying, added carry scaffolding, and tuned reward feedback for ADHD attention engagement.",
+            changes_made: [
+              "Upgraded arithmetic difficulty floor from single-digit to double-digit carrying",
+              "Added multi-digit visual scaffolding and carry animations",
+              "Tightened reward feedback pacing for ADHD engagement",
+            ],
+            before_after_diff_summary: "v1 (single-digit baseline) → v2 (mildly increased difficulty with double-digit carrying).",
+            gates: [
+              { name: "schema", label: "Questions come from our backend", passed: true, detail: "PASS" },
+              { name: "assertions", label: "The game's own tests pass", passed: true, detail: "PASS" },
+              { name: "playthrough", label: "A full level can actually be completed", passed: true, detail: "PASS" },
+              { name: "render_accessibility", label: "Readable, keyboard reachable, no fast flashing", passed: true, detail: "PASS" },
+            ],
+            all_passed: true,
+          },
+          checks: {
+            available: true,
+            all_passed: true,
+            checks: [
+              { name: "files", label: "The files it claims to have written exist", passed: true, detail: "PASS" },
+              { name: "shell_contract", label: "It asks us for questions instead of inventing them", passed: true, detail: "PASS" },
+              { name: "instrumentation", label: "Every event Loop B reads is still emitted", passed: true, detail: "PASS" },
+              { name: "no_fast_flashing", label: "Nothing flashes faster than 3Hz (WCAG 2.3.1)", passed: true, detail: "PASS" },
+              { name: "focus_visible", label: "Focus is visible for keyboard play", passed: true, detail: "PASS" },
+              { name: "playthrough", label: "We played it headless and it answered questions", passed: true, detail: "PASS" },
+            ],
+          },
+          verdict: {
+            passed: true,
+            disagreement: false,
+            headline: "Passed all independent verification gates and promoted to live build.",
+          },
+        },
+      ],
+    };
+    return evo as unknown as T;
+  }
+
+  // 11. Session metrics & release impact
   if (p.includes("session-metrics")) {
     const metrics: SessionMetrics = {
       points: [],

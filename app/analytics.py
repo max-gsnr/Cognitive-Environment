@@ -60,6 +60,7 @@ class AttemptRow:
     latency_ms: int
     tier_key: str
     game_version: int | None = None
+    #: A share of the question spent visibly on task, 0..1.
     focus_score: float | None = None
     idle_time_ms: int | None = None
     jitter_ratio: float | None = None
@@ -146,12 +147,7 @@ def session_metrics(
     ]
     idle_ms = sum(p for p in (r.idle_time_ms for r in rows[-len(shown) :]) if p)
     solve_ms = sum(p.latency_ms for p in shown)
-    # focus_score is stored 0-100; every rate on this model is a 0-1 share.
-    focus = [
-        r.focus_score / 100
-        for r in rows[-len(shown) :]
-        if r.focus_score is not None
-    ]
+    focus = [r.focus_score for r in rows[-len(shown) :] if r.focus_score is not None]
 
     return SessionMetrics(
         points=shown,
@@ -278,7 +274,7 @@ def _caveats(versions: list[VersionMetrics], sittings: list[Sitting]) -> list[st
         else:
             notes.append(
                 "Challenge fit held steady across versions, so the difficulty the "
-                "child faced is not what moved --- the game is."
+                "child faced is not what moved \u2014 the game is."
             )
     if len(sittings) < 4:
         notes.append("Fewer than four sittings in total: directional, not conclusive.")
@@ -291,7 +287,7 @@ def _version_metrics(
     points = [point for sitting in sittings for _row, point in sitting]
     rows = [row for sitting in sittings for row, _point in sitting]
     completed = [s for s in sittings if len(s) >= session_length]
-    focus = [r.focus_score / 100 for r in rows if r.focus_score is not None]
+    focus = [r.focus_score for r in rows if r.focus_score is not None]
     guesses = [p for p in points if not p.correct and _is_guess(p)]
     laboured = [
         p
@@ -513,11 +509,7 @@ def _share(sitting: Sitting, predicate: Callable[[Point], bool]) -> float:
 
 
 def _focus(sitting: Sitting) -> float | None:
-    scores = [
-        row.focus_score / 100
-        for row, _point in sitting
-        if row.focus_score is not None
-    ]
+    scores = [row.focus_score for row, _point in sitting if row.focus_score is not None]
     return round(sum(scores) / len(scores), 3) if scores else None
 
 
@@ -534,7 +526,10 @@ def rows_from_attempts(attempts: Sequence[Attempt]) -> list[AttemptRow]:
             latency_ms=attempt.latency_to_submit_ms,
             tier_key=attempt.tier_key,
             game_version=attempt.game_version,
-            focus_score=attempt.focus_score,
+            # The game records focus out of 100; the dashboards speak in shares.
+            focus_score=(
+                attempt.focus_score / 100.0 if attempt.focus_score is not None else None
+            ),
             idle_time_ms=attempt.idle_time_ms,
             jitter_ratio=attempt.jitter_ratio,
         )

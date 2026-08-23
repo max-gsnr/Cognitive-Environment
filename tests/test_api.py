@@ -497,6 +497,28 @@ def test_the_session_monitor_reads_the_attempt_log(client, profile):
     assert body["session_length"] == 10
 
 
+def test_focus_is_reported_as_a_share_not_the_raw_score(client, profile):
+    """The game posts focus out of 100; a dashboard that renders it as a
+    percentage would otherwise read 8000%."""
+    question = client.get(
+        f"/profiles/{profile}/skills/addition/next-question"
+    ).json()
+    a, b = question["operands"]
+    client.post("/attempts", json={
+        "profile_id": profile,
+        "skill_id": "addition",
+        "operands": [a, b],
+        "operator": question["operator"],
+        "answer_given": a + b,
+        "latency_to_submit_ms": 4000,
+        "focus_score": 80.0,
+    })
+    body = client.get(
+        f"/profiles/{profile}/skills/addition/session-metrics"
+    ).json()
+    assert body["focus_share"] == 0.8
+
+
 def test_release_impact_reports_the_version_that_produced_each_number(
     client, profile
 ):
@@ -515,6 +537,37 @@ def test_release_impact_reports_the_version_that_produced_each_number(
     # A seeded demo has to admit it is one.
     assert body["synthetic_share"] == 1.0
     assert body["caveats"]
+
+
+def test_the_evolution_log_shows_why_each_version_exists_and_what_blocked_one(
+    client, profile
+):
+    """Loop B's record: the trigger, the permitted change, and both scoreboards."""
+    client.post("/demo/seed-evolution", json={
+        "profile_id": profile,
+        "skill_id": "subtraction",
+    })
+    body = client.get(f"/profiles/{profile}/skills/subtraction/evolution").json()
+
+    assert [v["label"] for v in body["versions"]] == ["v3", "v2", "v1"]
+    assert body["summary"]["live_version"] == 2
+    assert body["summary"]["blocked"] == 1
+    # The candidate reported every one of its own gates as passing.
+    assert body["summary"]["disagreements"] == 1
+
+    blocked, live, first = body["versions"]
+    assert blocked["state"] == "blocked"
+    assert blocked["trigger"]["signal"] == "impulsive_guessing"
+    assert blocked["permitted_change"]["allowed"] == "content"
+    assert blocked["blocked_by"]
+
+    assert live["trigger"]["signal_label"] == "Disengaging from the game"
+    assert live["permitted_change"]["within_scope"] is True
+    assert live["changes_made"]
+    assert live["provenance"]["prompt_revision"]
+
+    # The first build had no session to read, so it claims no trigger.
+    assert first["trigger"]["available"] is False
 
 
 def test_an_attempt_records_which_build_of_the_game_posed_it(client, profile):
