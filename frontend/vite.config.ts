@@ -10,4 +10,16 @@ export default defineConfig({
       "/games": { target: "http://127.0.0.1:8000", changeOrigin: true },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+          gsap: ["gsap"],
+        },
+      },
+    },
+  },
 });
+
