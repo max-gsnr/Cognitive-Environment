@@ -497,6 +497,28 @@ def test_the_session_monitor_reads_the_attempt_log(client, profile):
     assert body["session_length"] == 10
 
 
+def test_focus_is_reported_as_a_share_not_the_raw_score(client, profile):
+    """The game posts focus out of 100; a dashboard that renders it as a
+    percentage would otherwise read 8000%."""
+    question = client.get(
+        f"/profiles/{profile}/skills/addition/next-question"
+    ).json()
+    a, b = question["operands"]
+    client.post("/attempts", json={
+        "profile_id": profile,
+        "skill_id": "addition",
+        "operands": [a, b],
+        "operator": question["operator"],
+        "answer_given": a + b,
+        "latency_to_submit_ms": 4000,
+        "focus_score": 80.0,
+    })
+    body = client.get(
+        f"/profiles/{profile}/skills/addition/session-metrics"
+    ).json()
+    assert body["focus_share"] == 0.8
+
+
 def test_release_impact_reports_the_version_that_produced_each_number(
     client, profile
 ):
