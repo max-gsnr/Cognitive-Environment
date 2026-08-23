@@ -165,6 +165,15 @@ export class OpenGameArena {
     trail: [] as Array<{ x: number; y: number; alpha: number }>,
   };
 
+  // Dropped Spaghetti Physics
+  private droppedSpaghetti = {
+    x: 400,
+    y: 220,
+    vy: 0,
+    alpha: 0,
+    active: false,
+  };
+
   // Controls
   private targetX: number | null = null;
   private targetY: number | null = null;
@@ -350,11 +359,34 @@ export class OpenGameArena {
         }
       } else {
         if (this.soundEnabled) soundFx.gentleRetry();
-        this.particles.emitExplosion(400, 180, "#fbbf24", 12);
+
+        // Thematic Physical Miss Mechanics
+        if (this.theme.id === "cooking") {
+          // Spaghetti slips off the fork and drops onto the table
+          this.droppedSpaghetti = { x: 400, y: 220, vy: 3.5, alpha: 1.0, active: true };
+          this.particles.emitExplosion(400, 240, "#facc15", 14);
+          this.particles.emitExplosion(400, 310, "#ef4444", 10);
+          this.particles.addFloatingText(400, 260, "🍝 Slipped off the fork!", "#f59e0b");
+        } else if (this.theme.id === "tennis") {
+          // Opponent hits the ball right back past our baseline!
+          this.opponent.x = Math.max(120, Math.min(680, this.tennisBall.x));
+          this.opponent.diveOffset = 0;
+          this.tennisBall.vy = 9.5;
+          this.tennisBall.vx = (Math.random() - 0.5) * 5;
+          this.particles.emitExplosion(this.opponent.x, 115, "#ffffff", 16);
+          this.particles.addFloatingText(this.opponent.x, 80, "🎾 Opponent Returned Ball!", "#38bdf8");
+        } else if (this.theme.id === "dinosaurs") {
+          this.particles.emitExplosion(400, 185, "#78350f", 16);
+          this.particles.addFloatingText(400, 140, "🪨 Hard stone layer! Next dig...", "#f59e0b");
+        } else {
+          this.particles.emitExplosion(400, 185, "#38bdf8", 14);
+          this.particles.addFloatingText(400, 140, "🚀 Deflected / Missed! Re-aligning...", "#fbbf24");
+        }
+
         this.feedbackMessage = `Almost — it was ${this.currentQuestion.correct_answer}. Next one incoming!`;
         this.feedbackIsGentle = true;
 
-        setTimeout(() => this.loadNextQuestion(), 1300);
+        setTimeout(() => this.loadNextQuestion(), 1400);
       }
     } catch (err) {
       this.callbacks.onError?.((err as Error).message);
@@ -375,7 +407,16 @@ export class OpenGameArena {
       }
     }
 
-    // 2. Tennis Ball Physics
+    // 2. Dropped Spaghetti Physics
+    if (this.droppedSpaghetti.active) {
+      this.droppedSpaghetti.y += this.droppedSpaghetti.vy;
+      this.droppedSpaghetti.vy += 0.25;
+      if (this.droppedSpaghetti.y > 330) {
+        this.droppedSpaghetti.active = false;
+      }
+    }
+
+    // 3. Tennis Ball Physics
     if (this.tennisBall.active) {
       this.tennisBall.x += this.tennisBall.vx;
       this.tennisBall.y += this.tennisBall.vy;
@@ -384,7 +425,7 @@ export class OpenGameArena {
       if (this.tennisBall.trail.length > 12) this.tennisBall.trail.shift();
     }
 
-    // 3. Opponent Pacing (Tennis)
+    // 4. Opponent Pacing (Tennis)
     if (this.theme.id === "tennis") {
       this.opponent.x += this.opponent.vx;
       if (this.opponent.x > 520 || this.opponent.x < 280) {
@@ -613,6 +654,24 @@ export class OpenGameArena {
       ctx.font = "bold 16px system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.fillText("⭐ Clean Plate! Molto Bene! ⭐", cx, cy);
+    }
+
+    // Dropped Spaghetti Noodles Splatter on Table
+    if (this.droppedSpaghetti.active) {
+      ctx.save();
+      ctx.fillStyle = "#facc15";
+      ctx.strokeStyle = "#ca8a04";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(this.droppedSpaghetti.x, this.droppedSpaghetti.y, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(220, 38, 38, 0.85)";
+      ctx.beginPath();
+      ctx.arc(this.droppedSpaghetti.x + 3, this.droppedSpaghetti.y - 2, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
 
     ctx.restore();
