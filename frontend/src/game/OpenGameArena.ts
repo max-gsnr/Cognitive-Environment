@@ -423,7 +423,11 @@ export class OpenGameArena {
       ? Math.hypot(this.lastCursorPos.x - this.startCursorPos.x, this.lastCursorPos.y - this.startCursorPos.y)
       : 25;
     const jitterRatio = Math.round((this.totalCursorDistancePx / Math.max(15, directDist)) * 100) / 100;
-    const rawFocus = 100 - (this.idleDurationMs / latency) * 45 - this.distractionEvents * 25 - (jitterRatio > 2.8 ? 15 : 0);
+    // Idle is sampled on the next cursor move, so a long gap can be credited
+    // past the end of the question it belongs to. It cannot exceed the time the
+    // question was on screen, and a focus share depends on that holding.
+    const idleMs = Math.round(Math.min(this.idleDurationMs, latency));
+    const rawFocus = 100 - (idleMs / latency) * 45 - this.distractionEvents * 25 - (jitterRatio > 2.8 ? 15 : 0);
     const focusScore = Math.round(Math.max(0, Math.min(100, rawFocus)) * 100) / 100;
 
     if (this.theme.id === "tennis") {
@@ -467,7 +471,7 @@ export class OpenGameArena {
         cursor_velocity_px_s: avgVelocity,
         cursor_peak_velocity_px_s: peakVelocity,
         jitter_ratio: jitterRatio,
-        idle_time_ms: Math.round(this.idleDurationMs),
+        idle_time_ms: idleMs,
         hesitation_ms: hesitation,
         distraction_events: this.distractionEvents,
         focus_score: focusScore,
@@ -478,7 +482,7 @@ export class OpenGameArena {
       // Augment result with local biometric nuance for real-time dashboard
       result.focus_score = focusScore;
       result.jitter_ratio = jitterRatio;
-      result.idle_time_ms = Math.round(this.idleDurationMs);
+      result.idle_time_ms = idleMs;
       result.cursor_velocity_px_s = avgVelocity;
       result.hesitation_ms = hesitation;
       result.distraction_events = this.distractionEvents;
@@ -494,7 +498,7 @@ export class OpenGameArena {
         cursor_velocity_px_s: avgVelocity,
         jitter_ratio: jitterRatio,
         focus_score: focusScore,
-        idle_time_ms: this.idleDurationMs,
+        idle_time_ms: idleMs,
         distraction_events: this.distractionEvents,
       });
 
@@ -1445,10 +1449,26 @@ export class OpenGameArena {
     ctx.font = "bold 15px system-ui, -apple-system, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(`${this.theme.name} • Question ${Math.min(this.sessionLength, this.answeredCount + 1)} / ${this.sessionLength}`, w / 2, 38);
+    // The problem itself. Without this the child has nothing to answer: every
+    // theme draws its own scene, and none of them drew the arithmetic.
+    if (this.currentQuestion && this.state !== "VICTORY") {
+      const [a, b] = this.currentQuestion.operands;
+      const prompt = `${a} ${this.currentQuestion.operator} ${b} = ?`;
+      ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.55)";
+      ctx.beginPath();
+      ctx.roundRect(w / 2 - 130, 62, 260, 56, 16);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 34px system-ui, -apple-system, sans-serif";
+      ctx.fillText(prompt, w / 2, 101);
+    }
+
     if (this.feedbackMessage) {
       ctx.font = "bold 16px system-ui, sans-serif";
       ctx.fillStyle = this.feedbackIsGentle ? "#fbbf24" : "#4ade80";
-      ctx.fillText(this.feedbackMessage, w / 2, 85);
+      ctx.fillText(this.feedbackMessage, w / 2, 142);
     }
 
     if (this.state === "VICTORY") {

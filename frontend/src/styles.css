@@ -737,21 +737,32 @@ ul.plain {
 }
 
 /* The play view is wider than the rest of the app: it holds a game and a
-   dashboard at once. Centre a wider block inside the standard column. */
+   dashboard at once. Take the full viewport so the monitor is paid for out of
+   new width rather than out of the game. */
 .play-page-layout {
-  width: min(1340px, 94vw);
-  margin-left: calc(-1 * (min(1340px, 94vw) - 100%) / 2);
+  width: min(1760px, 97vw);
+  margin-left: calc(-1 * (min(1760px, 97vw) - 100%) / 2);
 }
 
+/* A fixed rail, not a fraction: the game column absorbs every extra pixel, so
+   the canvas is as wide as it would be without a dashboard on most screens.
+   320-380px is the usual width for a monitoring rail and is enough for a
+   readable band chart. */
 .play-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(340px, 1fr);
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 24vw, 380px);
   gap: 20px;
   align-items: start;
 }
 
 .play-main {
   min-width: 0;
+}
+
+/* The canvas grows with the viewport instead of being capped, so a wide screen
+   spends its width on the game. */
+.canvas-wrapper {
+  height: clamp(480px, 56vh, 680px);
 }
 
 .play-side {
@@ -761,7 +772,8 @@ ul.plain {
   overflow-y: auto;
 }
 
-@media (max-width: 1080px) {
+/* Below this the rail would start eating the canvas, so it goes underneath. */
+@media (max-width: 1240px) {
   .play-page-layout {
     width: 100%;
     margin-left: 0;
@@ -803,6 +815,28 @@ ul.plain {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
   margin-bottom: 20px;
+}
+
+/* In the rail the tiles pair up rather than shrinking to unreadable columns. */
+.monitor .stat-grid {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.monitor .stat-value {
+  font-size: 20px;
+}
+
+/* Secondary charts stay one click away, so the rail is a dashboard rather than
+   a scroll. */
+.monitor-more {
+  width: 100%;
+  margin-bottom: 16px;
+  background: none;
+  color: var(--calm);
+  border: 1px solid var(--chart-grid);
+  font-size: 13px;
 }
 
 .stat {

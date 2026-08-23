@@ -30,12 +30,15 @@ type Props = {
   refreshKey: number;
 };
 
-const WINDOW = 20;
+// The rail is narrow, so it plots a sitting rather than a history: twelve dots
+// stay individually readable at 320-380px, twenty do not.
+const WINDOW = 12;
 
 export function SessionMonitor({ profileId, skillId, childName, refreshKey }: Props) {
   const [metrics, setMetrics] = useState<SessionMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [showMore, setShowMore] = useState(false);
 
   const load = useCallback(() => {
     api
@@ -93,17 +96,22 @@ export function SessionMonitor({ profileId, skillId, childName, refreshKey }: Pr
         )}
       </div>
 
+      {/* Four tiles, chosen because each one can change a decision: is the
+          difficulty right, is the child succeeding as often as intended, does a
+          mistake end quickly, and is a quit-risk run building. Pace, idle time
+          and focus are diagnostics, not decisions, so they wait behind the
+          toggle. */}
       <div className="stat-grid">
         <Stat
           label="Challenge Fit"
           value={pct(metrics.challenge_fit)}
-          note={`${inBand} of the last ${metrics.questions} questions in the target zone`}
+          note={`${inBand} of the last ${metrics.questions} in the target zone`}
           tone={metrics.challenge_fit >= 0.6 ? "good" : "watch"}
         />
         <Stat
           label="Success Rate"
           value={pct(metrics.success_rate)}
-          note={`aiming at ${pct(metrics.target_success)} for this child`}
+          note={`aiming at ${pct(metrics.target_success)}`}
           tone={Math.abs(metrics.success_rate - metrics.target_success) <= 0.15 ? "good" : "watch"}
         />
         <Stat
@@ -113,7 +121,7 @@ export function SessionMonitor({ profileId, skillId, childName, refreshKey }: Pr
               ? "—"
               : `${metrics.mean_recovery_questions} Qs`
           }
-          note="questions from a mistake back to a right answer"
+          note="mistake to right answer"
           tone={
             metrics.mean_recovery_questions !== null && metrics.mean_recovery_questions <= 2
               ? "good"
@@ -123,20 +131,8 @@ export function SessionMonitor({ profileId, skillId, childName, refreshKey }: Pr
         <Stat
           label="Longest Error Run"
           value={`${metrics.longest_error_run}`}
-          note="consecutive wrong answers; 3+ is where children quit"
+          note="3+ is where children quit"
           tone={metrics.longest_error_run <= 2 ? "good" : "watch"}
-        />
-        <Stat
-          label="On-Pace Rate"
-          value={pct(metrics.on_pace_rate)}
-          note="answers within this child's own usual speed"
-        />
-        <Stat
-          label="Time on Task"
-          value={seconds(metrics.time_on_task_ms)}
-          note={`${seconds(metrics.idle_ms)} of it idle${
-            metrics.focus_share === null ? "" : ` • focus ${pct(metrics.focus_share)}`
-          }`}
         />
       </div>
 
@@ -180,6 +176,32 @@ export function SessionMonitor({ profileId, skillId, childName, refreshKey }: Pr
         </p>
       </Figure>
 
+      <button
+        type="button"
+        className="secondary monitor-more"
+        aria-expanded={showMore}
+        onClick={() => setShowMore((on) => !on)}
+      >
+        {showMore ? "Hide difficulty path and mistakes" : "Difficulty path and mistakes"}
+      </button>
+
+      {showMore && (
+        <>
+      <div className="stat-grid">
+        <Stat
+          label="On-Pace Rate"
+          value={pct(metrics.on_pace_rate)}
+          note="within this child's usual speed"
+        />
+        <Stat
+          label="Time on Task"
+          value={seconds(metrics.time_on_task_ms)}
+          note={`${seconds(metrics.idle_ms)} idle${
+            metrics.focus_share === null ? "" : ` • focus ${pct(metrics.focus_share)}`
+          }`}
+        />
+      </div>
+
       <Figure
         title="Difficulty Path"
         why={
@@ -222,6 +244,8 @@ export function SessionMonitor({ profileId, skillId, childName, refreshKey }: Pr
           total={metrics.questions}
         />
       </Figure>
+        </>
+      )}
     </div>
   );
 }
