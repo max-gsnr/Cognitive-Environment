@@ -21,30 +21,19 @@ SEEDED_SKILLS = [("addition", "Addition"), ("subtraction", "Subtraction")]
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
-    # Lightweight auto-migration for SQLite local development
+    # Universal auto-migration for SQLite local development
     if settings.database_url.startswith("sqlite"):
-        from sqlalchemy import text
+        from sqlalchemy import inspect, text
+        inspector = inspect(engine)
         with engine.connect() as conn:
-            # Check attempts table
-            result = conn.execute(text("PRAGMA table_info(attempts)")).fetchall()
-            existing_cols = {row[1] for row in result}
-            new_cols = [
-                ("is_synthetic", "BOOLEAN DEFAULT 0"),
-                ("cursor_velocity_px_s", "FLOAT"),
-                ("jitter_ratio", "FLOAT"),
-                ("idle_time_ms", "INTEGER"),
-                ("distraction_events", "INTEGER"),
-                ("focus_score", "FLOAT"),
-            ]
-            for col_name, col_type in new_cols:
-                if col_name not in existing_cols:
-                    conn.execute(text(f"ALTER TABLE attempts ADD COLUMN {col_name} {col_type}"))
-            
-            # Check subject_mastery table
-            res_mastery = conn.execute(text("PRAGMA table_info(subject_mastery)")).fetchall()
-            mastery_cols = {row[1] for row in res_mastery}
-            if "decrement_credit" not in mastery_cols:
-                conn.execute(text("ALTER TABLE subject_mastery ADD COLUMN decrement_credit FLOAT DEFAULT 0.0"))
+            for table in Base.metadata.tables.values():
+                if not inspector.has_table(table.name):
+                    continue
+                existing_cols = {col["name"] for col in inspector.get_columns(table.name)}
+                for col in table.columns:
+                    if col.name not in existing_cols:
+                        col_type = col.type.compile(engine.dialect)
+                        conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}"))
             conn.commit()
 
     with SessionLocal() as session:
