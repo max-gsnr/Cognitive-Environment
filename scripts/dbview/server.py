@@ -19,8 +19,8 @@ def get_db_con(readonly: bool = True):
         con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
     else:
         con = sqlite3.connect(str(DB))
+        con.execute("PRAGMA journal_mode=WAL;")
     con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL;")
     return con
 
 
