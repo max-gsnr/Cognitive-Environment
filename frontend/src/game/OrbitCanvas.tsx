@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AttemptResult, Question } from "../api";
-import { OpenGameArena, THEMES } from "./OpenGameArena";
+import { OpenGameArena, THEMES, getThemeForInterests } from "./OpenGameArena";
 
 interface OrbitCanvasProps {
   profileId: string;
   skillId: string;
+  interests?: string[];
   sessionLength?: number;
   onQuestionLoaded?: (q: Question) => void;
   onAttemptResult?: (result: AttemptResult) => void;
@@ -15,6 +16,7 @@ interface OrbitCanvasProps {
 export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
   profileId,
   skillId,
+  interests = [],
   sessionLength = 10,
   onQuestionLoaded,
   onAttemptResult,
@@ -23,11 +25,24 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const gameRef = useRef<OpenGameArena | null>(null);
-  const [selectedTheme, setSelectedTheme] = useState<string>("nebula");
+
+  // Initialize theme based on the child's interests
+  const initialThemeKey = Object.keys(THEMES).find(
+    (k) => THEMES[k].name === getThemeForInterests(interests).name
+  ) || "nebula";
+
+  const [selectedTheme, setSelectedTheme] = useState<string>(initialThemeKey);
   const [audioEnabled, setAudioEnabled] = useState<boolean>(true);
   const [inputVal, setInputVal] = useState<string>("");
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const autoKey = Object.keys(THEMES).find(
+      (k) => THEMES[k].name === getThemeForInterests(interests).name
+    ) || "nebula";
+    setSelectedTheme(autoKey);
+  }, [interests]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -54,7 +69,7 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
       game.destroy();
       gameRef.current = null;
     };
-  }, [profileId, skillId, sessionLength]);
+  }, [profileId, skillId, sessionLength, selectedTheme]);
 
   const handleThemeChange = (themeKey: string) => {
     setSelectedTheme(themeKey);

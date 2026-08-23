@@ -16,6 +16,8 @@ import { soundFx } from "./SoundFx";
 
 export interface GameTheme {
   name: string;
+  targetLabel: string;
+  playerLabel: string;
   bgColor: string;
   gridColor: string;
   accentColor: string;
@@ -27,6 +29,8 @@ export interface GameTheme {
 export const THEMES: Record<string, GameTheme> = {
   nebula: {
     name: "🌌 Deep Space Nebula",
+    targetLabel: "✦ DOCK HUB",
+    playerLabel: "Starship",
     bgColor: "#070b14",
     gridColor: "rgba(56, 189, 248, 0.06)",
     accentColor: "#38bdf8",
@@ -34,8 +38,65 @@ export const THEMES: Record<string, GameTheme> = {
     starColors: ["#ffffff", "#93c5fd", "#c084fc", "#38bdf8"],
     laserColor: "#38bdf8",
   },
+  dinosaurs: {
+    name: "🦕 Jurassic Fossil Quest",
+    targetLabel: "🦴 FOSSIL DOME",
+    playerLabel: "Dig Rover",
+    bgColor: "#141009",
+    gridColor: "rgba(251, 191, 36, 0.08)",
+    accentColor: "#f59e0b",
+    playerColor: "#10b981",
+    starColors: ["#fef3c7", "#fde68a", "#d97706", "#6ee7b7"],
+    laserColor: "#f59e0b",
+  },
+  cooking: {
+    name: "🍝 Chef Kitchen Quest",
+    targetLabel: "🍕 OVEN STATION",
+    playerLabel: "Chef Cart",
+    bgColor: "#1a0e0e",
+    gridColor: "rgba(239, 68, 68, 0.08)",
+    accentColor: "#ef4444",
+    playerColor: "#f97316",
+    starColors: ["#fff1f2", "#fecdd3", "#fb7185", "#fde047"],
+    laserColor: "#ef4444",
+  },
+  tennis: {
+    name: "🎾 Grand Slam Tennis",
+    targetLabel: "🏆 COURT NET",
+    playerLabel: "Tennis Racket",
+    bgColor: "#061a12",
+    gridColor: "rgba(74, 222, 128, 0.08)",
+    accentColor: "#4ade80",
+    playerColor: "#a3e635",
+    starColors: ["#f0fdf4", "#bbf7d0", "#86efac", "#facc15"],
+    laserColor: "#4ade80",
+  },
+  horses: {
+    name: "🐴 Equestrian Meadow",
+    targetLabel: "🏇 STABLE GATE",
+    playerLabel: "Horseshoe Rider",
+    bgColor: "#0c170f",
+    gridColor: "rgba(132, 204, 22, 0.08)",
+    accentColor: "#84cc16",
+    playerColor: "#eab308",
+    starColors: ["#f7fee7", "#ecfccb", "#bef264", "#fef08a"],
+    laserColor: "#84cc16",
+  },
+  trains: {
+    name: "🚂 Steam Locomotive",
+    targetLabel: "🚉 TRAIN DEPOT",
+    playerLabel: "Steam Engine",
+    bgColor: "#0b1320",
+    gridColor: "rgba(148, 163, 184, 0.08)",
+    accentColor: "#38bdf8",
+    playerColor: "#f59e0b",
+    starColors: ["#f8fafc", "#e2e8f0", "#94a3b8", "#38bdf8"],
+    laserColor: "#38bdf8",
+  },
   aurora: {
     name: "✨ Solar Flare Aurora",
+    targetLabel: "✦ SOLAR DOCK",
+    playerLabel: "Solar Glider",
     bgColor: "#09121d",
     gridColor: "rgba(251, 191, 36, 0.06)",
     accentColor: "#fbbf24",
@@ -43,16 +104,27 @@ export const THEMES: Record<string, GameTheme> = {
     starColors: ["#ffffff", "#fde047", "#67e8f9", "#fbbf24"],
     laserColor: "#fbbf24",
   },
-  hyperdrive: {
-    name: "🚀 Hyperdrive Galaxy",
-    bgColor: "#0f0728",
-    gridColor: "rgba(168, 85, 247, 0.08)",
-    accentColor: "#c084fc",
-    playerColor: "#a855f7",
-    starColors: ["#ffffff", "#e879f9", "#818cf8", "#c084fc"],
-    laserColor: "#c084fc",
-  },
 };
+
+export function getThemeForInterests(interests: string[] = []): GameTheme {
+  const combined = interests.join(" ").toLowerCase();
+  if (combined.includes("dinosaur") || combined.includes("fossil") || combined.includes("paleontol")) {
+    return THEMES.dinosaurs;
+  }
+  if (combined.includes("spaghetti") || combined.includes("cook") || combined.includes("food") || combined.includes("baking") || combined.includes("pizza")) {
+    return THEMES.cooking;
+  }
+  if (combined.includes("tennis")) {
+    return THEMES.tennis;
+  }
+  if (combined.includes("horse") || combined.includes("equestrian") || combined.includes("riding")) {
+    return THEMES.horses;
+  }
+  if (combined.includes("train") || combined.includes("railway") || combined.includes("locomotive")) {
+    return THEMES.trains;
+  }
+  return THEMES.nebula;
+}
 
 export interface Station {
   id: string;

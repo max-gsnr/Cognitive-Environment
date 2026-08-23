@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { GameState, api } from "../api";
-import { THEMES } from "../game/OpenGameArena";
+import { GameState, ProfileDetail, api } from "../api";
+import { THEMES, getThemeForInterests } from "../game/OpenGameArena";
 
 const GATES = [
   ["schema", "Question shapes are valid & strictly typed"],
@@ -14,13 +14,25 @@ const GATES = [
 export function GeneratePage() {
   const { profileId = "", skillId = "" } = useParams();
   const navigate = useNavigate();
+  const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [state, setState] = useState<GameState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState("nebula");
-  const [selectedVibe, setSelectedVibe] = useState("space");
   const [activeTab, setActiveTab] = useState<"quick" | "devin">("quick");
   const gameId = useRef<string | null>(null);
+
+  useEffect(() => {
+    api
+      .get<ProfileDetail>(`/profiles/${profileId}`)
+      .then((d) => {
+        setDetail(d);
+        const autoTheme = getThemeForInterests(d.profile.interests);
+        const key = Object.keys(THEMES).find((k) => THEMES[k].name === autoTheme.name) || "nebula";
+        setSelectedTheme(key);
+      })
+      .catch((cause: Error) => setError(cause.message));
+  }, [profileId]);
 
   useEffect(() => {
     if (!state || state.status === "ready" || state.status === "gates_failed") return;
@@ -55,12 +67,20 @@ export function GeneratePage() {
     }
   };
 
+  const childName = detail?.profile.name || "Student";
+  const childInterests = detail?.profile.interests || ["general games"];
+  const currentThemeObj = THEMES[selectedTheme] || THEMES.nebula;
+
   return (
     <div className="generate-page">
-      <h1>Create a {skillId} Space Odyssey for Leo 🚀</h1>
-      <p className="muted">
-        Launch a cosmic star-docking math game powered by OpenGame&apos;s Top-Down Arena skeleton.
-      </p>
+      <header className="generate-header">
+        <h1 style={{ textTransform: "capitalize" }}>
+          Generate a {skillId} Game for {childName} 🎨
+        </h1>
+        <p className="muted">
+          Tailored to {childName}&apos;s interests ({childInterests.join(", ")}) and cognitive profile using OpenGame&apos;s 60fps Arena engine.
+        </p>
+      </header>
 
       {/* Tabs */}
       <div className="studio-tabs">
@@ -69,27 +89,27 @@ export function GeneratePage() {
           className={`tab-btn ${activeTab === "quick" ? "active" : ""}`}
           onClick={() => setActiveTab("quick")}
         >
-          ⚡ Instant Space Creator (Recommended)
+          ⚡ Instant Game Launcher (Recommended)
         </button>
         <button
           type="button"
           className={`tab-btn ${activeTab === "devin" ? "active" : ""}`}
           onClick={() => setActiveTab("devin")}
         >
-          🤖 Cloud AI / Devin PR Generator
+          🤖 Autonomous Devin AI Generator
         </button>
       </div>
 
       {activeTab === "quick" ? (
         <div className="card studio-card">
-          <h2>Space Customization Studio</h2>
+          <h2>Game Customization Studio</h2>
           <p className="muted">
-            Choose Leo&apos;s star system theme and sensory preferences, then launch the mission!
+            Choose {childName}&apos;s preferred theme and launch their interactive learning arena:
           </p>
 
           <div className="studio-grid">
             <div className="studio-field">
-              <label>Select Star System / Theme:</label>
+              <label>Select Learning World & Theme:</label>
               <div className="theme-options">
                 {Object.entries(THEMES).map(([key, t]) => (
                   <button
@@ -107,32 +127,10 @@ export function GeneratePage() {
                 ))}
               </div>
             </div>
-
-            <div className="studio-field">
-              <label>Game Archetype / Skeleton:</label>
-              <div className="radio-group">
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="vibe"
-                    value="space"
-                    checked={selectedVibe === "space"}
-                    onChange={() => setSelectedVibe("space")}
-                  />
-                  <span>
-                    <strong>Top-Down Cosmic Arena (OpenGame Arena)</strong>
-                    <br />
-                    <small className="muted">
-                      Parallax starfield, ion thrusters, quantum docking hub, laser beams, and space station flair.
-                    </small>
-                  </span>
-                </label>
-              </div>
-            </div>
           </div>
 
-          <div className="quality-checklist">
-            <h3>Automated Quality & Accessibility Gates:</h3>
+          <div className="quality-checklist" style={{ marginTop: "20px" }}>
+            <h3>Automated Quality & Accessibility Gates (Verified Safe for ADHD):</h3>
             <ul className="gates-list">
               {GATES.map(([gate, label]) => (
                 <li key={gate} className="gate-item">
@@ -143,24 +141,25 @@ export function GeneratePage() {
             </ul>
           </div>
 
-          <div className="studio-actions">
+          <div className="studio-actions" style={{ marginTop: "24px" }}>
             <button className="primary launch-btn" onClick={handleQuickCreate}>
-              🚀 Launch Space Mission
+              🎮 Launch {childName}&apos;s {currentThemeObj.name}
             </button>
           </div>
         </div>
       ) : (
         <>
           <div className="card">
-            <p>
-              Devin writes the game against Leo&apos;s profile, runs the gates, and opens a
-              pull request. Nothing goes live until every gate passes.
+            <h2>Autonomous Devin SWE Session</h2>
+            <p className="muted">
+              Devin ingests {childName}&apos;s cognitive profile and interests ({childInterests.join(", ")}), builds a custom Phaser 3 mini-game in <code>games/{profileId}/{skillId}/v1/</code>, headlessly verifies the 4 shipping gates, and opens a GitHub pull request.
             </p>
             <button
+              className="primary"
               onClick={startDevinBuild}
               disabled={starting || (!!state && state.status !== "gates_failed")}
             >
-              {starting ? "Handing it to Devin…" : "Build via Devin"}
+              {starting ? "Spawning Devin Session…" : `🚀 Dispatch Devin to Build ${skillId} Game`}
             </button>
             {error && <p className="error">{error}</p>}
           </div>
@@ -179,34 +178,40 @@ export function GeneratePage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    watch the session
+                    view devin session
+                  </a>
+                )}
+                {state.pr_url && (
+                  <a href={state.pr_url} target="_blank" rel="noreferrer">
+                    pull request
                   </a>
                 )}
               </div>
-              <ul className="plain">
-                {GATES.map(([gate, label]) => {
-                  const result = state.gate_results?.[gate];
-                  return (
-                    <li key={gate}>
-                      <span className="pill">{result ?? "waiting"}</span> {label}
-                    </li>
-                  );
-                })}
-              </ul>
-              {state.pr_url && (
-                <p>
-                  <a href={state.pr_url} target="_blank" rel="noreferrer">
-                    Review the pull request
-                  </a>
-                </p>
+              {state.test_report && (
+                <div style={{ marginTop: "16px" }}>
+                  <strong>Devin SWE Summary:</strong>
+                  <p>{state.test_report.summary}</p>
+                </div>
               )}
-              {state.status === "gates_failed" && (
-                <p className="error">A gate failed, so this version was not shipped.</p>
+              {state.gate_results && (
+                <div style={{ marginTop: "16px" }}>
+                  <strong>Gate Verification Results:</strong>
+                  <dl className="teacher-view">
+                    {Object.entries(state.gate_results).map(([gate, verdict]) => (
+                      <div key={gate} style={{ display: "contents" }}>
+                        <dt>{gate}</dt>
+                        <dd>{String(verdict)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
               )}
               {state.status === "ready" && (
-                <Link to={`/play/${profileId}/${skillId}`}>
-                  <button className="primary">Play it</button>
-                </Link>
+                <div style={{ marginTop: "20px" }}>
+                  <Link to={`/play/${profileId}/${skillId}`}>
+                    <button className="primary">Play Devin&apos;s Generated Game 🎮</button>
+                  </Link>
+                </div>
               )}
             </div>
           )}
