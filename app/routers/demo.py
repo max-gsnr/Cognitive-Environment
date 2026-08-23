@@ -453,15 +453,17 @@ def seed_evolution(
     if session.get(SubjectMastery, (body.profile_id, body.skill_id)) is None:
         raise HTTPException(404, "no mastery row for this profile and skill")
 
-    # Clear any earlier seeded lineage first: this is a button on the teacher page,
-    # and pressing it twice used to draw every version twice.
-    for previous in session.scalars(
+    # This is a button on the teacher page, and the demo students already boot with
+    # a seeded lineage (app/db.py). Writing a second one drew every version twice,
+    # so an existing lineage is left exactly as it is rather than deleted: one of
+    # those rows is the live game the play page loads.
+    existing = session.scalars(
         select(Game).where(
             Game.profile_id == body.profile_id, Game.skill_id == body.skill_id
         )
-    ).all():
-        if (previous.provenance or {}).get("seeded"):
-            session.delete(previous)
+    ).all()
+    if any((row.provenance or {}).get("seeded") for row in existing):
+        return {"seeded": 0}
 
     now = datetime.now(UTC)
     seeded = 0
