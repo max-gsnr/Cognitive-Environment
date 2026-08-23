@@ -500,11 +500,13 @@ export class OpenGameArena {
 
       this.callbacks.onAttemptResult?.(result);
 
+      this.answeredCount += 1;
       if (result.is_correct) {
-        this.answeredCount += 1;
         this.score += 100;
-        this.callbacks.onScoreUpdate?.(this.score, this.answeredCount);
+      }
+      this.callbacks.onScoreUpdate?.(this.score, this.answeredCount);
 
+      if (result.is_correct) {
         if (this.soundEnabled) soundFx.dockSuccess();
 
         if (this.theme.id === "cooking") {
@@ -579,7 +581,14 @@ export class OpenGameArena {
         this.feedbackMessage = `Almost — it was ${this.currentQuestion.correct_answer}. Next one incoming!`;
         this.feedbackIsGentle = true;
 
-        setTimeout(() => this.loadNextQuestion(), 1400);
+        if (this.answeredCount >= this.sessionLength) {
+          setTimeout(() => {
+            this.state = "VICTORY";
+            this.callbacks.onLevelComplete?.();
+          }, 1400);
+        } else {
+          setTimeout(() => this.loadNextQuestion(), 1400);
+        }
       }
     } catch (err) {
       this.callbacks.onError?.((err as Error).message);

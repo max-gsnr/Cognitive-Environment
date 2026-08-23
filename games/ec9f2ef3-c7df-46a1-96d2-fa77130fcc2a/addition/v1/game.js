@@ -284,9 +284,10 @@
         T.setDifficultyVector(result.updated_difficulty_vector);
       }
 
+      answeredCount += 1;
+
       if (result.is_correct) {
         dockHub.docked = true;
-        answeredCount += 1;
         playDockChime();
         emitExplosion(dockHub.x, dockHub.y, "#38bdf8", 24);
 
@@ -308,6 +309,11 @@
         emitExplosion(dockHub.x, dockHub.y, "#fbbf24", 12);
         feedbackEl.textContent = `Almost, Leo — it was ${currentQuestion.correct_answer}. Next star pod incoming!`;
         feedbackEl.className = "feedback gentle";
+
+        if (answeredCount >= totalSession) {
+          setTimeout(finishLevel, 1300);
+          return;
+        }
 
         setTimeout(loadNextQuestion, 1300);
       }
