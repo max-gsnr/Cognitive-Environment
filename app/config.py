@@ -39,7 +39,7 @@ class Settings:
     repo_url: str = field(default_factory=lambda: _env("REPO_URL", ""))
     cors_origins: str = field(
         default_factory=lambda: _env(
-            "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+            "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,*"
         )
     )
 
