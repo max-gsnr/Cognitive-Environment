@@ -33,14 +33,18 @@
     constructor() {
       this.amplitude = T.actor.bobAmplitudePx;
       this.period = T.actor.bobPeriodMs;
+      this.idleAfter = T.actor.idleAfterMs;
       this.elapsed = 0;
     }
 
-    update(dt) {
+    update(dt, idleForMs) {
       this.elapsed = (this.elapsed + dt * 1000) % this.period;
-      if (reducedMotion) return 0;
+      if (reducedMotion || idleForMs < this.idleAfter) return 0;
+      const fade = Math.min(1, (idleForMs - this.idleAfter) / this.idleAfter);
       return (
-        Math.sin((this.elapsed / this.period) * Math.PI * 2) * this.amplitude
+        Math.sin((this.elapsed / this.period) * Math.PI * 2) *
+        this.amplitude *
+        fade
       );
     }
   }
@@ -105,9 +109,17 @@
       this.pod = null;
       this.parked = false;
       this.bobOffset = 0;
+      this.lastTarget = { x: x, y: y };
+      this.idleForMs = 0;
     }
 
     update(target, dt, width, height, dock) {
+      if (target.x !== this.lastTarget.x || target.y !== this.lastTarget.y) {
+        this.idleForMs = 0;
+        this.lastTarget = { x: target.x, y: target.y };
+      } else {
+        this.idleForMs += dt * 1000;
+      }
       if (this.parked) {
         this.vx = 0;
         this.vy = 0;
@@ -117,7 +129,7 @@
         this.follow.update(this, target, dt, width, height);
         this.align.update(this);
       }
-      this.bobOffset = this.bob.update(dt);
+      this.bobOffset = this.bob.update(dt, this.idleForMs);
       this.dockAction.update(this, dt);
     }
 
@@ -349,9 +361,6 @@
       drawTug(context, this.actor);
       drawPod(context, this.actor.pod);
       drawStars(context, this.starsNear);
-      if (sceneKey === "complete") {
-        this.actor.parked = true;
-      }
     },
 
     dockPod() {
@@ -372,11 +381,30 @@
   const runner = new window.Runner(document.getElementById("scene"));
   World.init(runner);
   window.OrbitWorld = World;
-  window.ORBIT_RUNTIME = { runner: runner, world: World };
+  let abandonmentSent = false;
+  const resetAbandonment = function () {
+    abandonmentSent = false;
+  };
+  window.ORBIT_RUNTIME = {
+    runner: runner,
+    world: World,
+    session: null,
+    resetAbandonment: resetAbandonment,
+  };
   const abandon = function () {
-    if (runner.sceneKey !== "play" || World.complete) return;
+    if (
+      runner.sceneKey !== "play" ||
+      World.complete ||
+      abandonmentSent ||
+      !window.ORBIT_RUNTIME.session
+    ) {
+      return;
+    }
+    abandonmentSent = true;
     Telemetry.capture("level_abandoned", {
-      progress_pct: Math.round((World.docked / C.SESSION_LENGTH) * 100),
+      progress_pct: Math.round(
+        (window.ORBIT_RUNTIME.session.progress() / C.SESSION_LENGTH) * 100
+      ),
     });
   };
   document.addEventListener("visibilitychange", function () {

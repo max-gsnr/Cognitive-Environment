@@ -91,7 +91,11 @@ code reads `T.<path>` and never inlines a number.
 TUNING = {
   loop:   { logicalWidth: 960, logicalHeight: 600, stepMs: 16.6667, maxCatchUpSteps: 4 },
   actor:  { followLerp: 0.08, maxSpeedPxPerSec: 420, headingLerp: 0.12,
-            bobAmplitudePx: 4, bobPeriodMs: 3200, edgePaddingPx: 48 },
+            bobAmplitudePx: 4, bobPeriodMs: 3200, edgePaddingPx: 48,
+            idleAfterMs: 1200 },
+  effects:{ shakeLightMs: 200, shakeLightPx: 3, shakeMediumMs: 400, shakeMediumPx: 7,
+            trailCount: 5, trailDelayMs: 60, trailAlpha: 0.35, trailFadeMs: 300,
+            burstCount: 12, burstSpreadPx: 46, burstMs: 420 },
   stars:  { far: { count: 60, radius: 0.8, alpha: 0.25, driftPxPerSec: 6 },
             mid: { count: 28, radius: 1.2, alpha: 0.35, driftPxPerSec: 14 },
             near:{ count: 12, radius: 1.8, alpha: 0.40, driftPxPerSec: 26 } },
@@ -139,7 +143,7 @@ trap from the debug protocol, and it is why `onPreCreate` exists at all).
 | `TitleScene`    | `onCreate`, `onDraw`, `onPostCreate`, `onExit`            | Field + ring drawn behind one line of copy and a Start button; Enter or click advances. No animation faster than 3 Hz. |
 | `IntroScene`    | all six                                                  | Two typewriter lines (`DialogueBox` component), Enter/click advances, skippable; emits `level_started` on leaving.     |
 | `PlayScene`     | all six                                                  | Owns `Session`; drives actor, pod, HUD banner and feedback; the only scene that talks to the API.                      |
-| `CompleteScene` | `onCreate`, `onDraw`, `onPostCreate`, `onExit`            | "All ten docked." plus the tug parked in the ring; emits `level_completed`. No score, no rating, no retry pressure.    |
+| `CompleteScene` | `onCreate`, `onDraw`, `onPostCreate`, `onExit`            | "That's all ten." plus the tug parked in the ring; emits `level_completed`. No score, no rating, no retry pressure.    |
 
 ### 3.3 `Session` (logic only, no rendering)
 
@@ -147,6 +151,9 @@ Mirrors OpenGame's `systems/` split (managers hold state, scenes render). API:
 `start()`, `current()`, `submit(rawText)`, `retry()`, `progress()`, `isComplete()`.
 Rules:
 
+- `stop()` aborts any in-flight request and latches a stopped flag; a response that lands after
+  the scene exited must touch neither the HUD nor telemetry.
+- The answer field is cleared as each new question is shown, and focus stays in it.
 - `submit` is a no-op while a request is in flight (single-flight guard) and while there is no
   active question — in that state it retries the fetch instead, so a dropped question can
   never be re-submitted (the v3 review fix, preserved).
@@ -160,7 +167,7 @@ Rules:
 | Behaviour      | Config                                          | Purpose                                              |
 | -------------- | ----------------------------------------------- | ---------------------------------------------------- |
 | `PointerFollow`| `followLerp`, `maxSpeedPxPerSec`, `edgePaddingPx`| Velocity toward pointer with inertia; clamped inside the logical bounds (screen-bounds clamping from `BaseArenaScene.setupScreenBounds`) |
-| `IdleBob`      | `bobAmplitudePx`, `bobPeriodMs`                 | Slow sine bob when the pointer is idle               |
+| `IdleBob`      | `bobAmplitudePx`, `bobPeriodMs`, `idleAfterMs`   | Slow sine bob, faded in only once the pointer has been still for `idleAfterMs` |
 | `HeadingAlign` | `headingLerp`                                   | Hull rotates toward the velocity vector              |
 | `DockAction`   | `podTravelMs`                                   | On a correct answer, releases the pod toward the pad |
 
@@ -175,6 +182,12 @@ reusable across profiles rather than hard-coded for one child.
 | `shakeLight/Medium`         | `visual.animations !== "minimal_no_screen_shake"`    | disabled      |
 | `trail(actor)`              | `visual.particle_effects === true`                   | disabled      |
 | `burst(x, y)`               | `visual.particle_effects === true`                   | disabled      |
+
+Each preset must be fully implemented, not a stub that happens never to run for this child:
+`shake*` offsets the scene transform by `shake*Px` for `shake*Ms` and restores it exactly;
+`trail` drops `trailCount` fading hull silhouettes at `trailDelayMs` spacing (`trailAlpha`,
+`trailFadeMs`); `burst` throws `burstCount` pastel dots across `burstSpreadPx` over `burstMs`.
+The gate decides whether they run for a given profile — it is not a substitute for the effect.
 | `floatText(text, tone)`     | always available (text feedback, not a particle)     | enabled       |
 | `tap` / `dock` / `settle`   | `audio.sfx !== "none"`                               | enabled       |
 
@@ -220,13 +233,15 @@ Feedback copy:
 | Report sent        | "Sent. Thanks."                                 | `good`   | none     |
 | Report failed      | "Could not send."                               | `gentle` | none     |
 
-Completion copy: "All ten docked." — nothing else. No stars, no percentage, no "try to beat it".
+Completion copy: "That's all ten." — nothing else. It must not claim ten pods docked, because a
+wrong answer docks no pod and the copy would then contradict the ring. No stars, no percentage, no "try to beat it".
 
 Telemetry is unchanged from v3 and must keep firing: `problem_shown`, `answer_submitted`
 (`correct`, `time_to_solve_ms`, `error_class` verbatim from the response), `idle_tick` every
 5 s idle, `edit_event` (`immediate_correction` < 1 s, `after_pause_correction` >= 2 s, scoped to
 the answer field only), `motion_event` (`micro_jitter`, `repetitive_orbit`), `level_started`,
-`level_completed`, `level_abandoned` with `progress_pct`. Every event carries `game_id`,
+`level_completed`, `level_abandoned` with `progress_pct` (share of questions *answered*, not
+pods docked, and emitted at most once per session). Every event carries `game_id`,
 `profile_id`, `skill_id`, `version: 4` and the flattened difficulty vector.
 
 ---

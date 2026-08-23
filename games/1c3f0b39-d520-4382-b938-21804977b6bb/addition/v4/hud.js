@@ -198,10 +198,12 @@
         this.problemMirror.textContent = "";
         return;
       }
+      this.clearAnswer();
       const equation =
         question.operands[0] + " " + question.operator + " " + question.operands[1];
       this.equation.textContent = equation;
       this.problemMirror.textContent = equation;
+      this.focusAnswer();
     }
 
     setProgress(answered) {

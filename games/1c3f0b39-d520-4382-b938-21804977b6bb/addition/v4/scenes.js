@@ -3,8 +3,9 @@
   const T = C.TUNING;
   const SCENE_ORDER = ["title", "intro", "play", "complete"];
 
-  function apiRequest(path, options) {
+  function apiRequest(path, options, onController) {
     const controller = new AbortController();
+    if (onController) onController(controller);
     const timeout = window.setTimeout(
       function () {
         controller.abort();
@@ -48,6 +49,9 @@
       this.scene = null;
       this.sceneKey = null;
       this.accumulator = 0;
+      this.shakeAmplitude = 0;
+      this.shakeStarted = 0;
+      this.shakeUntil = 0;
       this.lastFrame = performance.now();
       this.resize = this.resize.bind(this);
       this.frame = this.frame.bind(this);
@@ -86,6 +90,32 @@
       };
     }
 
+    startShake(amplitude, durationMs) {
+      this.shakeAmplitude = amplitude;
+      this.shakeStarted = performance.now();
+      this.shakeUntil = this.shakeStarted + durationMs;
+    }
+
+    clearShake() {
+      this.shakeAmplitude = 0;
+      this.shakeStarted = 0;
+      this.shakeUntil = 0;
+    }
+
+    shakeOffset(now) {
+      if (this.shakeAmplitude === 0 || now >= this.shakeUntil) {
+        this.clearShake();
+        return { x: 0, y: 0 };
+      }
+      const progress =
+        (now - this.shakeStarted) / (this.shakeUntil - this.shakeStarted);
+      const fade = 1 - progress;
+      return {
+        x: Math.sin(progress * Math.PI * 8) * this.shakeAmplitude * fade,
+        y: Math.cos(progress * Math.PI * 6) * this.shakeAmplitude * fade,
+      };
+    }
+
     start(key) {
       if (SCENE_ORDER.indexOf(key) < 0) {
         throw new Error("Unknown scene: " + key);
@@ -114,15 +144,17 @@
         this.accumulator -= T.loop.stepMs;
         steps += 1;
       }
+      this.context.setTransform(1, 0, 0, 1, 0, 0);
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      const shake = this.shakeOffset(now);
       this.context.setTransform(
         this.dpr * this.scale,
         0,
         0,
         this.dpr * this.scale,
-        this.dpr * this.offsetX,
-        this.dpr * this.offsetY
+        this.dpr * (this.offsetX + shake.x),
+        this.dpr * (this.offsetY + shake.y)
       );
-      this.context.clearRect(0, 0, this.logicalWidth, this.logicalHeight);
       if (this.scene) this.scene.onDraw(this.context);
       requestAnimationFrame(this.frame);
     }
@@ -252,9 +284,11 @@
       this.questionStartedAt = 0;
       this.nextTimer = null;
       this.controller = null;
+      this.stopped = false;
     }
 
     start() {
+      this.stopped = false;
       this.answered = 0;
       this.question = null;
       this.callbacks.onProgress(this.answered);
@@ -274,7 +308,7 @@
     }
 
     fetchNext() {
-      if (this.inFlight) return;
+      if (this.inFlight || this.stopped) return;
       this.inFlight = true;
       this.callbacks.onSendEnabled(false);
       apiRequest(
@@ -282,8 +316,14 @@
           C.PROFILE_ID +
           "/skills/" +
           C.SKILL_ID +
-          "/next-question"
+          "/next-question",
+        null,
+        (controller) => {
+          this.controller = controller;
+        }
       ).then((question) => {
+        if (this.stopped) return;
+        this.controller = null;
         this.question = question;
         this.questionStartedAt = performance.now();
         this.inFlight = false;
@@ -296,6 +336,8 @@
         this.callbacks.onQuestion(question);
         this.callbacks.onSendEnabled(true);
       }).catch(() => {
+        if (this.stopped) return;
+        this.controller = null;
         this.question = null;
         this.inFlight = false;
         this.callbacks.onQuestion(null);
@@ -308,7 +350,7 @@
     }
 
     submit(rawText) {
-      if (this.inFlight) return;
+      if (this.inFlight || this.stopped) return;
       if (!this.question) {
         this.callbacks.onMessage(
           "Lost the signal. Press Send to try again.",
@@ -341,7 +383,11 @@
             Math.round(performance.now() - started)
           ),
         }),
+      }, (controller) => {
+        this.controller = controller;
       }).then((result) => {
+        if (this.stopped) return;
+        this.controller = null;
         this.question = null;
         this.inFlight = false;
         this.answered += 1;
@@ -373,6 +419,8 @@
           );
         }
       }).catch(() => {
+        if (this.stopped) return;
+        this.controller = null;
         this.inFlight = false;
         this.callbacks.onMessage(
           "That didn't send. Press Send to try again.",
@@ -383,21 +431,24 @@
     }
 
     retry() {
-      if (!this.question) this.fetchNext();
+      if (!this.question && !this.stopped) this.fetchNext();
     }
 
     stop() {
+      this.stopped = true;
       if (this.nextTimer !== null) window.clearTimeout(this.nextTimer);
       this.nextTimer = null;
       this.question = null;
       this.inFlight = false;
       if (this.controller) this.controller.abort();
+      this.controller = null;
     }
   }
 
   class PlayScene extends BaseScene {
     onPreCreate() {
       window.OrbitWorld.reset();
+      window.ORBIT_RUNTIME.resetAbandonment();
       this.hud = null;
       this.effects = null;
       this.session = null;
@@ -421,6 +472,11 @@
         onSendEnabled: (enabled) => this.hud.setSendEnabled(enabled),
         onFocusAnswer: () => this.hud.focusAnswer(),
         onDock: () => {
+          this.effects.trail(window.OrbitWorld.actor);
+          this.effects.burst(
+            window.OrbitWorld.dock.x,
+            window.OrbitWorld.dock.y
+          );
           window.OrbitWorld.dockPod();
           this.effects.dock();
           this.effects.floatText(
@@ -431,6 +487,7 @@
         },
         onComplete: () => this.runner.start("complete"),
       });
+      window.ORBIT_RUNTIME.session = this.session;
     }
 
     onPostCreate() {
@@ -445,11 +502,13 @@
 
     onDraw(context) {
       window.OrbitWorld.draw(context, "play");
+      this.effects.draw(context, performance.now());
     }
 
     onExit() {
       Telemetry.stopIdleWatch();
       this.session.stop();
+      window.ORBIT_RUNTIME.session = null;
       this.hud.unmount();
       this.effects.clear();
     }
@@ -457,6 +516,7 @@
     showFeedback(text, tone) {
       this.hud.setFeedback(text, tone);
       if (tone === "gentle" && text.indexOf("Almost") === 0) {
+        this.effects.shakeLight();
         this.effects.settle();
       }
     }
@@ -482,7 +542,7 @@
       this.panel = document.createElement("section");
       this.panel.className = "scene-copy";
       const heading = document.createElement("h2");
-      heading.textContent = "All ten docked.";
+      heading.textContent = "That's all ten.";
       this.panel.appendChild(heading);
       document.getElementById("hud-root").appendChild(this.panel);
       window.OrbitWorld.setComplete();
