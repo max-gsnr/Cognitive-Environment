@@ -118,7 +118,9 @@ A verified live run (1 generation, 1 island, `--max-acu 8`) went: session
 `devin-1605a2d1cab64c00b1d46b748fe93738` edited the game on
 `orbit/gen1-strengthen_scaffold-43148a` (persistent worked decomposition on the number line),
 the orchestrator fetched that branch, gates passed, and headless Chromium scored it 0.861
-against the seed's 0.656 — so it was promoted.
+against the seed's 0.656 — so it was promoted. (Both numbers come from that one run, under
+scoring that predates rollouts recording a learner's quit; absolute values are lower now that
+the abandonment penalty actually fires, the comparison is unaffected.)
 
 Output is `.orbit/provenance.json`: per-generation ACUs, every candidate with its operator,
 Devin session id, gate failures and metrics, the bandit's posterior over operators, and the

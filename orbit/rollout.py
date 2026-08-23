@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from .policy import COHORT, LearnerProfile, SimulatedLearner
-from .telemetry import Trace
+from .telemetry import LEVEL_ABANDONED, Trace
 
 CONTRACT = ("observe", "drainEvents", "isOver")
 
@@ -98,6 +98,18 @@ async def rollout_page(
             break
         decision = learner.act(observation)
         if decision.quit:
+            # A learner walking away is the signal the abandonment penalty and
+            # the "everyone quit" gate exist for, and the game itself only ever
+            # finishes on time, so the rollout records the quit.
+            events += await page.evaluate("window.orbit.drainEvents()")
+            if not any(event.get("type") == LEVEL_ABANDONED for event in events):
+                events.append(
+                    {
+                        "type": LEVEL_ABANDONED,
+                        "t_ms": int(observation.get("elapsed_ms", 0)),
+                        "reason": "learner_quit",
+                    }
+                )
             break
         if decision.use_hint:
             await page.click("#hint")
