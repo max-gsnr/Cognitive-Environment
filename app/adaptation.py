@@ -157,7 +157,9 @@ def next_vector(
             direction=_direction(vector, chosen, skill_id),
             axis=movement.axis,
             error_class=error_class,
-            repeat_tier=movement.repeat_tier,
+            # A rest item is a new question by definition, so it outranks
+            # "show that one again" the same way it outranks a hold.
+            repeat_tier=movement.repeat_tier and not resting,
         ),
         rating=updated_rating,
         expected_success=ability.expected_success(updated_rating, chosen, skill_id),
