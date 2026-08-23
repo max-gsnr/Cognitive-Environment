@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Token Machine</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="stage">
+      <section id="play-screen" class="panel">
+        <div id="dots" class="dots" role="img" aria-label="Progress"></div>
+
+        <div id="focal" class="focal">
+          <canvas id="tokens" width="640" height="180" aria-hidden="true"></canvas>
+          <p id="problem" class="problem" aria-live="polite"></p>
+          <form id="answer-form" autocomplete="off">
+            <label class="sr-only" for="answer">Answer</label>
+            <input
+              id="answer"
+              name="answer"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="4"
+              required
+              autofocus
+            />
+            <button id="submit-btn" class="primary" type="submit">Enter</button>
+          </form>
+          <p id="feedback" class="feedback" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section id="done-screen" class="panel" hidden>
+        <div class="machine-badge is-lit" aria-hidden="true">
+          <span class="chip chip-a"></span>
+          <span class="chip chip-b"></span>
+          <span class="chip chip-c"></span>
+        </div>
+        <h2 id="done-title">All tokens in</h2>
+        <button id="again-btn" class="primary" type="button">Play again</button>
+      </section>
+
+      <footer class="tray">
+        <button id="report-btn" class="quiet" type="button">Report a problem</button>
+      </footer>
+
+      <div id="report-panel" class="report-panel" hidden>
+        <label for="report-text">What went wrong?</label>
+        <textarea id="report-text" rows="3"></textarea>
+        <div class="report-actions">
+          <button id="report-cancel" class="quiet" type="button">Cancel</button>
+          <button id="report-send" class="primary" type="button">Send</button>
+        </div>
+      </div>
+    </main>
+
+    <script src="./config.js"></script>
+    <script src="./telemetry.js"></script>
+    <script src="./game.js"></script>
+  </body>
+</html>
