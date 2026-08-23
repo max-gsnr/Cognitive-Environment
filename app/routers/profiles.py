@@ -215,7 +215,20 @@ def next_question(
 ) -> QuestionResponse:
     mastery = session.get(SubjectMastery, (profile_id, skill_id))
     if mastery is None:
-        raise HTTPException(404, "no mastery row for this profile and skill")
+        default_vector = {
+            "digits": 2 if skill_id == difficulty.ADDITION else 1,
+            "magnitude": "low_double" if skill_id == difficulty.ADDITION else "single",
+            "carries": False,
+            "borrows": False,
+            "zero_in_minuend": False,
+        }
+        mastery = SubjectMastery(
+            profile_id=profile_id,
+            skill_id=skill_id,
+            difficulty_vector=default_vector,
+        )
+        session.add(mastery)
+        session.commit()
     question = difficulty.next_question(mastery.difficulty_vector, skill_id)
     return QuestionResponse(**question)
 
