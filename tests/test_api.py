@@ -325,6 +325,23 @@ def test_only_a_gated_version_can_go_live(client, profile):
     assert client.post(f"/games/{broken_id}/rollback").status_code == 409
 
 
+def test_a_gate_verdict_may_carry_its_evidence():
+    """Devin reports "PASS - <what it checked>", not a bare token."""
+    evidenced = {
+        "schema": "PASS - all 10 question objects matched the shape exactly",
+        "assertions": "PASS - no negative operands, no operand over 3 digits",
+        "playthrough": "PASS - 10 questions, question 2 deliberately wrong",
+        "render_accessibility": "PASS - no @keyframes, contrast 7.5:1 to 10.6:1",
+    }
+    assert gates_passed(evidenced) is True
+
+    evidenced["playthrough"] = "FAIL - the session stalled after question 3"
+    assert gates_passed(evidenced) is False
+
+    evidenced["playthrough"] = "the earlier attempt did not pass, this one is fine"
+    assert gates_passed(evidenced) is False
+
+
 def test_the_interviews_focus_answer_is_stored_as_self_regulation():
     assert _restlessness("focus") == "self_regulation"
     assert _restlessness("self_regulation") == "self_regulation"

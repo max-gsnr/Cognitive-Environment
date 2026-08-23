@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -33,6 +34,7 @@ router = APIRouter(tags=["games"])
 
 REQUIRED_GATES = ("schema", "assertions", "playthrough", "render_accessibility")
 PASSING = {"pass", "passed", "ok", "true", "yes"}
+VERDICT = re.compile(r"^\s*([a-z]+)", re.IGNORECASE)
 
 STRUCTURED_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -62,7 +64,13 @@ def _with_repo(prompt: str) -> str:
 
 
 def gates_passed(gate_results: dict[str, Any] | None) -> bool:
-    """Every required gate must report a pass. A missing gate is a failure."""
+    """Every required gate must report a pass. A missing gate is a failure.
+
+    Devin reports a gate as a verdict followed by its evidence -- "PASS - all 10
+    question objects matched ..." -- so only the leading word is the verdict, and
+    anything that does not open with one (including prose that merely mentions
+    passing) fails.
+    """
     if not gate_results:
         return False
     for gate in REQUIRED_GATES:
@@ -70,7 +78,11 @@ def gates_passed(gate_results: dict[str, Any] | None) -> bool:
         if isinstance(value, bool):
             if not value:
                 return False
-        elif not isinstance(value, str) or value.strip().lower() not in PASSING:
+            continue
+        if not isinstance(value, str):
+            return False
+        verdict = VERDICT.match(value)
+        if verdict is None or verdict.group(1).lower() not in PASSING:
             return False
     return True
 
