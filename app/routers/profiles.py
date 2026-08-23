@@ -45,11 +45,19 @@ def describe(vector: dict[str, Any], skill_id: str) -> str:
 
 
 def profile_dict(profile: ChildProfile) -> dict[str, Any]:
+    raw_interests = profile.interests
+    if isinstance(raw_interests, str):
+        interests_list = [i.strip() for i in raw_interests.split(",") if i.strip()]
+    elif isinstance(raw_interests, list):
+        interests_list = [str(i).strip() for i in raw_interests if str(i).strip()]
+    else:
+        interests_list = []
+
     return {
         "id": profile.id,
         "name": profile.name,
         "age": profile.age,
-        "interests": profile.interests,
+        "interests": interests_list if interests_list else ["general games"],
         "leniency_band": profile.leniency_band,
         "restlessness_interpretation": profile.restlessness_interpretation,
         "difficulty_floor": profile.difficulty_floor,

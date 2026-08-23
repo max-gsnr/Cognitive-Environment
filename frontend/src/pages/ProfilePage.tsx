@@ -64,15 +64,29 @@ export function ProfilePage() {
   const rollback = (gameId: string) =>
     api.post(`/games/${gameId}/rollback`).then(load).catch((cause: Error) => setError(cause.message));
 
-  if (error) return <p className="error">{error}</p>;
+  if (error) {
+    return (
+      <div className="card" style={{ textAlign: "center", padding: "32px 16px" }}>
+        <h2>Profile Not Found</h2>
+        <p className="error" style={{ margin: "12px 0 20px" }}>{error}</p>
+        <Link to="/">
+          <button className="primary">← Back to Student Roster</button>
+        </Link>
+      </div>
+    );
+  }
   if (!detail) return <p className="muted">Loading…</p>;
   const { profile } = detail;
+
+  const interestsString = Array.isArray(profile.interests)
+    ? profile.interests.join(", ")
+    : (profile.interests || "various games");
 
   return (
     <>
       <h1>{profile.name}</h1>
       <p className="muted">
-        Age {profile.age} · likes {profile.interests.join(", ")}
+        Age {profile.age} · likes {interestsString}
       </p>
 
       <div className="card">
