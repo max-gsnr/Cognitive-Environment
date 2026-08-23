@@ -59,6 +59,10 @@ Loop A moves the numbers. Loop B decides whether the game itself is broken.
 - **Secrets travel as Devin session secrets.** The PostHog personal key is
   passed through the session-secret mechanism so Devin can query telemetry
   itself; it never appears in prompt text. Prompt text ends up in transcripts.
+- **`POSTHOG_HOST` has to name the project's region.** PostHog ingestion on the
+  wrong region returns 200 and drops the batch, so telemetry looks captured and
+  Devin's query returns nothing. An EU project needs `eu.i.posthog.com` in both
+  the backend env and the frontend's `VITE_POSTHOG_HOST`.
 
 ## The intake is real
 
