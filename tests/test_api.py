@@ -4,8 +4,9 @@ from fastapi.testclient import TestClient
 from app import difficulty
 from app.db import SessionLocal, init_db
 from app.main import app
-from app.models import Attempt, ChildProfile, SubjectMastery
+from app.models import Attempt, ChildProfile, Game, SubjectMastery
 from app.routers.games import gates_passed
+from app.routers.intake import _restlessness
 
 
 @pytest.fixture(scope="module")
@@ -175,6 +176,54 @@ def test_profile_patch_records_a_diff(client, profile):
         if item["action"] == "profile_updated"
     )
     assert entry["payload"]["diff"]["session_length"]["after"] == 6
+
+
+def test_rollback_promotes_the_version_the_teacher_picked(client, profile):
+    with SessionLocal() as session:
+        first = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=1,
+            status="ready",
+            is_live=False,
+        )
+        second = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=2,
+            status="ready",
+            is_live=True,
+        )
+        session.add_all([first, second])
+        session.commit()
+        first_id = first.id
+        second_id = second.id
+
+    body = client.post(f"/games/{first_id}/rollback").json()
+    assert body["version"] == 1
+
+    with SessionLocal() as session:
+        assert session.get(Game, first_id).is_live is True
+        assert session.get(Game, second_id).is_live is False
+
+
+def test_only_a_gated_version_can_go_live(client, profile):
+    with SessionLocal() as session:
+        broken = Game(
+            profile_id=profile, skill_id="subtraction", version=1, status="gates_failed"
+        )
+        session.add(broken)
+        session.commit()
+        broken_id = broken.id
+
+    assert client.post(f"/games/{broken_id}/rollback").status_code == 409
+
+
+def test_the_interviews_focus_answer_is_stored_as_self_regulation():
+    assert _restlessness("focus") == "self_regulation"
+    assert _restlessness("self_regulation") == "self_regulation"
+    assert _restlessness("unknown") == "distraction"
+    assert _restlessness(None) == "distraction"
 
 
 def test_a_missing_gate_is_a_failure():

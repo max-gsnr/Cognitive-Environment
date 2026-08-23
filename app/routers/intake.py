@@ -169,7 +169,14 @@ def _profile_from_resolved(
 
 
 def _restlessness(value: str | None) -> str:
-    return value if value in {"distraction", "self_regulation"} else "distraction"
+    """The interview says "focus"; the profile stores it as "self_regulation".
+
+    Anything else, including the interview's explicit "unknown", becomes
+    "distraction" -- the backend picks the default, not the model.
+    """
+    if value in {"focus", "self_regulation"}:
+        return "self_regulation"
+    return "distraction"
 
 
 def _seed_mastery(session: Session, profile: ChildProfile) -> None:

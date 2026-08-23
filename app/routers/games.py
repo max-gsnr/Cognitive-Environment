@@ -274,29 +274,31 @@ def report_problem(
 
 @router.post("/games/{game_id}/rollback")
 def rollback(game_id: str, session: Session = Depends(get_session)) -> dict[str, Any]:
+    """Make the requested version the live one. Git history is never touched."""
     game = _require_game(session, game_id)
-    previous = session.scalars(
-        select(Game)
-        .where(
+    if game.status != "ready":
+        raise HTTPException(409, "only a version that passed its gates can go live")
+
+    live = session.scalars(
+        select(Game).where(
             Game.profile_id == game.profile_id,
             Game.skill_id == game.skill_id,
-            Game.version < game.version,
-            Game.status == "ready",
+            Game.is_live.is_(True),
         )
-        .order_by(Game.version.desc())
     ).first()
-    if previous is None:
-        raise HTTPException(409, "no earlier ready version to roll back to")
 
-    _set_live(session, previous)
+    _set_live(session, game)
     audit.record(
         session,
         actor="teacher",
         action="rollback",
-        payload={"from_version": game.version, "to_version": previous.version},
+        payload={
+            "from_version": live.version if live else None,
+            "to_version": game.version,
+        },
     )
     session.commit()
-    return {"game_id": previous.id, "version": previous.version, "is_live": True}
+    return {"game_id": game.id, "version": game.version, "is_live": True}
 
 
 async def _poll(session: Session, game_id: str, action: str) -> dict[str, Any]:

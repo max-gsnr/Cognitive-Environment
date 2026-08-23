@@ -24,12 +24,14 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Orbit", version="0.1.0", lifespan=lifespan)
 
+# There is no auth here, so the browser origin check is the only thing standing
+# between a stranger's page and a child's roster. Keep it to known origins.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.allowed_origins,
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["Content-Type"],
 )
 
 app.include_router(intake.router)

@@ -73,7 +73,7 @@ def seed_posthog_events(session: Session, game_id: str) -> int:
     audit.record(
         session,
         actor="system",
-        action="demo_events_seeded",
+        action="posthog_seeded",
         payload={"game_id": game_id, "event_count": len(batch)},
     )
     return len(batch)

@@ -245,7 +245,7 @@ still. Stillness plus an unrecoverable answer on material that isn't hard
 is the signal that the GAME has failed, not the math.
 
 Note: repetitive_orbit means disengagement OR stimming depending on the
-profile's restlessness_interpretation field. If it is "focus", do not
+profile's restlessness_interpretation field. If it is "self_regulation", do not
 read orbiting as disengagement.
 
 REFERENCE (your primary framework; deviate if the evidence clearly points
