@@ -99,10 +99,13 @@ class Attempt(Base):
     difficulty_vector_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON)
     tier_key: Mapped[str] = mapped_column(String, index=True)
     latency_to_submit_ms: Mapped[int] = mapped_column(Integer)
-    # Seeded demo rows look exactly like played ones, which is the point during a
-    # demo and a hazard everywhere else: anything training or evaluating on this
-    # table filters on this flag.
+    # Seeded demo rows look exactly like played ones
     is_synthetic: Mapped[bool] = mapped_column(Boolean, default=False)
+    cursor_velocity_px_s: Mapped[float | None] = mapped_column(Float, nullable=True)
+    jitter_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    idle_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    distraction_events: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    focus_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
