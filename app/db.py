@@ -20,30 +20,6 @@ SEEDED_SKILLS = [("addition", "Addition"), ("subtraction", "Subtraction")]
 
 DEFAULT_STUDENTS = [
     {
-        "id": "ec9f2ef3-c7df-46a1-96d2-fa77130fcc2a",
-        "name": "Leo",
-        "age": 7,
-        "interests": ["outer space", "trains"],
-        "leniency_band": "low",
-        "restlessness_interpretation": "distraction",
-        "difficulty_floor": {"addition": "mid_double", "subtraction": "low_double"},
-        "session_length": 5,
-        "addition": {
-            "digits": 2,
-            "magnitude": "mid_double",
-            "carries": True,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-        "subtraction": {
-            "digits": 2,
-            "magnitude": "low_double",
-            "carries": False,
-            "borrows": True,
-            "zero_in_minuend": False,
-        },
-    },
-    {
         "id": "442e9766-3d23-455b-8eb5-e2f4621c1ff7",
         "name": "Lena",
         "age": 8,
@@ -52,116 +28,8 @@ DEFAULT_STUDENTS = [
         "restlessness_interpretation": "distraction",
         "difficulty_floor": {"addition": "low_double", "subtraction": "single"},
         "session_length": 5,
-        "addition": {
-            "digits": 2,
-            "magnitude": "low_double",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-        "subtraction": {
-            "digits": 1,
-            "magnitude": "single",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-    },
-    {
-        "id": "70d067b5-2415-4fa1-8255-6b7ebbb16912",
-        "name": "Maya",
-        "age": 6,
-        "interests": ["dinosaurs", "fossil excavation"],
-        "leniency_band": "high",
-        "restlessness_interpretation": "self_regulation",
-        "difficulty_floor": {"addition": "low_double", "subtraction": "single"},
-        "session_length": 5,
-        "addition": {
-            "digits": 2,
-            "magnitude": "low_double",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-        "subtraction": {
-            "digits": 1,
-            "magnitude": "single",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-    },
-    {
-        "id": "5b597147-9dc4-4d8b-986a-e24949576a8b",
-        "name": "Sammy",
-        "age": 7,
-        "interests": ["sharks", "marine biology"],
-        "leniency_band": "medium",
-        "restlessness_interpretation": "distraction",
-        "difficulty_floor": {"addition": "low_double", "subtraction": "single"},
-        "session_length": 5,
-        "addition": {
-            "digits": 2,
-            "magnitude": "low_double",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-        "subtraction": {
-            "digits": 1,
-            "magnitude": "single",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-    },
-    {
-        "id": "6e21eb23-cb84-4822-b5e1-5ef0f845a7dc",
-        "name": "Max",
-        "age": 8,
-        "interests": ["spaghetti", "cooking"],
-        "leniency_band": "low",
-        "restlessness_interpretation": "self_regulation",
-        "difficulty_floor": {"addition": "low_double", "subtraction": "single"},
-        "session_length": 5,
-        "addition": {
-            "digits": 2,
-            "magnitude": "low_double",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-        "subtraction": {
-            "digits": 1,
-            "magnitude": "single",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-    },
-    {
-        "id": "8c12fa44-592b-4781-a901-2092df483b8a",
-        "name": "Sophie",
-        "age": 7,
-        "interests": ["starry night", "drawing", "astronomy"],
-        "leniency_band": "medium",
-        "restlessness_interpretation": "distraction",
-        "difficulty_floor": {"addition": "low_double", "subtraction": "single"},
-        "session_length": 5,
-        "addition": {
-            "digits": 2,
-            "magnitude": "low_double",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
-        "subtraction": {
-            "digits": 1,
-            "magnitude": "single",
-            "carries": False,
-            "borrows": False,
-            "zero_in_minuend": False,
-        },
+        "addition": {"digits": 2, "magnitude": "low_double", "carries": False, "borrows": False, "zero_in_minuend": False},
+        "subtraction": {"digits": 1, "magnitude": "single", "carries": False, "borrows": False, "zero_in_minuend": False},
     },
 ]
 
@@ -171,24 +39,16 @@ def init_db() -> None:
     # Universal auto-migration for SQLite local development
     if settings.database_url.startswith("sqlite"):
         from sqlalchemy import inspect, text
-
         inspector = inspect(engine)
         with engine.connect() as conn:
             for table in Base.metadata.tables.values():
                 if not inspector.has_table(table.name):
                     continue
-                existing_cols = {
-                    col["name"] for col in inspector.get_columns(table.name)
-                }
+                existing_cols = {col["name"] for col in inspector.get_columns(table.name)}
                 for col in table.columns:
                     if col.name not in existing_cols:
                         col_type = col.type.compile(engine.dialect)
-                        conn.execute(
-                            text(
-                                f"ALTER TABLE {table.name} "
-                                f"ADD COLUMN {col.name} {col_type}"
-                            )
-                        )
+                        conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}"))
             conn.commit()
 
     with SessionLocal() as session:
