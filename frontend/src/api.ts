@@ -1,6 +1,16 @@
 import { handleClientFallback } from "./fallbackData";
 
-const BASE = import.meta.env.VITE_API_BASE ?? "/api";
+const getBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE) {
+    return import.meta.env.VITE_API_BASE;
+  }
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return "http://127.0.0.1:8000";
+  }
+  return "/api";
+};
+
+const BASE = getBaseUrl();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
@@ -108,6 +118,8 @@ export type AttemptResult = {
   baseline_ms: number | null;
   movement: string;
   repeat_tier: boolean;
+  ability_rating?: number;
+  expected_success?: number;
   focus_score?: number;
   jitter_ratio?: number;
   idle_time_ms?: number;

@@ -14,18 +14,11 @@
 import { useEffect, useState } from "react";
 
 import { ReleaseImpact as ReleaseImpactData, api } from "../api";
-import {
-  DeltaBars,
-  DeltaRow,
-  Figure,
-  Funnel,
-  Stat,
-  pct,
-} from "./charts";
+import { DeltaBars, DeltaRow, Figure, Funnel, Stat, pct } from "./charts";
 
-type Props = { profileId: string; skillId: string };
+type Props = { profileId: string; skillId: string; refreshKey?: number };
 
-export function ReleaseImpact({ profileId, skillId }: Props) {
+export function ReleaseImpact({ profileId, skillId, refreshKey = 0 }: Props) {
   const [data, setData] = useState<ReleaseImpactData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,16 +30,17 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
         setError(null);
       })
       .catch((cause: Error) => setError(cause.message));
-  }, [profileId, skillId]);
+  }, [profileId, skillId, refreshKey]);
 
-  if (error) return <p className="error">Release impact unavailable: {error}</p>;
-  if (!data) return <p className="muted">Loading release impact…</p>;
+  if (error) return <p className="error">Impact dashboard unavailable: {error}</p>;
+  if (!data) return <p className="muted">Loading impact comparison…</p>;
   if (!data.versions.length) {
     return (
-      <div className="card">
+      <div className="card monitor">
         <h2>Release Impact</h2>
         <p className="muted">
-          No completed sittings on record for {skillId} yet, so there is nothing to compare.
+          No practice has been recorded under a specific version of the {skillId} game yet,
+          so there is no release to compare against.
         </p>
       </div>
     );
@@ -223,8 +217,6 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
           ]}
         />
       </Figure>
-
-
 
       <div className="caveats">
         <h3>Read this with the caveats</h3>

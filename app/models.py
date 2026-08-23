@@ -48,7 +48,7 @@ class ChildProfile(Base):
     leniency_band: Mapped[str] = mapped_column(String, default="medium")
     restlessness_interpretation: Mapped[str] = mapped_column(String, default="unknown")
     difficulty_floor: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
-    session_length: Mapped[int] = mapped_column(Integer, default=10)
+    session_length: Mapped[int] = mapped_column(Integer, default=5)
     constraints: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(

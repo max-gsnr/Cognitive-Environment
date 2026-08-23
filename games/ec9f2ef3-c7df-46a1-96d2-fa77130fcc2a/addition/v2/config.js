@@ -7,10 +7,10 @@ window.ORBIT = (function () {
       /\/$/,
       ""
     ),
-    GAME_ID: "leo-space-docking-v1",
+    GAME_ID: "leo-space-docking-v2",
     PROFILE_ID: "ec9f2ef3-c7df-46a1-96d2-fa77130fcc2a",
     SKILL_ID: "addition",
-    VERSION: 1,
+    VERSION: 2,
     SESSION_LENGTH: 5,
     POSTHOG_KEY: "phc_orbit_mock_key",
     POSTHOG_HOST: "https://us.i.posthog.com",

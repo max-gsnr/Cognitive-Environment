@@ -56,7 +56,7 @@ export function SessionMonitor({ profileId, skillId, childName, refreshKey }: Pr
 
   if (error) return <p className="error">Session monitor unavailable: {error}</p>;
   if (!metrics) return <p className="muted">Loading session metrics…</p>;
-  if (!metrics.questions) {
+  if (!metrics || !metrics.questions || !metrics.points || metrics.points.length === 0) {
     return (
       <div className="card">
         <h2>Session Monitor</h2>
@@ -210,7 +210,7 @@ export function SessionMonitor({ profileId, skillId, childName, refreshKey }: Pr
         }
         summary={
           `Difficulty moved ${metrics.tier_changes} time(s) across ${metrics.questions} ` +
-          `questions, currently at ${metrics.points[metrics.points.length - 1].tier_label}.`
+          `questions, currently at ${metrics.points[metrics.points.length - 1]?.tier_label ?? "initial tier"}.`
         }
       >
         <StepChart
