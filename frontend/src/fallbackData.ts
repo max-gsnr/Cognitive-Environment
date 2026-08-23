@@ -9,7 +9,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "low",
     restlessness_interpretation: "distraction",
     difficulty_floor: { addition: "mid_double", subtraction: "low_double" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -20,7 +20,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "medium",
     restlessness_interpretation: "distraction",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -31,7 +31,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "high",
     restlessness_interpretation: "self_regulation",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -42,7 +42,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "medium",
     restlessness_interpretation: "distraction",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -53,7 +53,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "low",
     restlessness_interpretation: "self_regulation",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
   {
@@ -64,7 +64,7 @@ const DEFAULT_PROFILES: Profile[] = [
     leniency_band: "medium",
     restlessness_interpretation: "distraction",
     difficulty_floor: { addition: "low_double", subtraction: "single" },
-    session_length: 10,
+    session_length: 5,
     constraints: {},
   },
 ];
@@ -108,15 +108,43 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
       reported_problems: [],
       games: [
         {
-          id: `game-${profile.name.toLowerCase()}`,
+          id: `game-${profile.name.toLowerCase()}-addition-v1`,
+          skill_id: "addition",
+          version: 1,
+          status: "ready",
+          is_live: false,
+          pr_url: null,
+          code_path: `games/${profile.id}/addition/v1/index.html`,
+          gate_results: { schema: "PASS", assertions: "PASS", playthrough: "PASS", render_accessibility: "PASS" },
+          test_report: {
+            summary: `Initial baseline addition game built for ${profile.name}.`,
+            diagnosis: "Single-digit arithmetic foundation.",
+            change_tier: "content",
+            changes_made: ["Initial bespoke game generation"],
+            before_after_diff_summary: "Initial v1 baseline build.",
+          },
+          created_at: new Date(Date.now() - 86400000).toISOString(),
+        },
+        {
+          id: `game-${profile.name.toLowerCase()}-addition-v2`,
           skill_id: "addition",
           version: 2,
           status: "ready",
           is_live: true,
-          pr_url: null,
-          code_path: null,
-          gate_results: { typecheck: "PASS", tests: "PASS" },
-          test_report: { summary: "Bespoke interest game active." },
+          pr_url: "https://github.com/max-gsnr/Cognitive-Environment/pull/2",
+          code_path: `games/${profile.id}/addition/v2/index.html`,
+          gate_results: { schema: "PASS", assertions: "PASS", playthrough: "PASS", render_accessibility: "PASS" },
+          test_report: {
+            summary: `Devin autonomous iteration for ${profile.name}'s mission.`,
+            diagnosis: `${profile.name} mastered baseline practice. Devin upgraded cognitive pacing, added carry scaffolding, and stepped difficulty to mid-double digits.`,
+            change_tier: "structural",
+            changes_made: [
+              "Upgraded difficulty floor to double-digit carrying",
+              "Added multi-digit visual scaffolding and carry animations",
+              "Tightened reward pacing for ADHD attention engagement",
+            ],
+            before_after_diff_summary: "v1 (single-digit baseline) → v2 (mildly more difficult double-digit carrying + enhanced arcade feedback).",
+          },
           created_at: new Date().toISOString(),
         },
       ],
@@ -261,14 +289,19 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
       leniency_band: "medium",
       restlessness_interpretation: "distraction",
       difficulty_floor: { addition: "low_double", subtraction: "single" },
-      session_length: 10,
+      session_length: 5,
       constraints: {},
     };
     profilesState.unshift(newProfile);
     return { profile_id: newId } as unknown as T;
   }
 
-  // 8. GET /audit-log
+  // 8. POST /games/:id/rollback
+  if (p.startsWith("/games/") && p.endsWith("/rollback")) {
+    return { is_live: true, status: "ready" } as unknown as T;
+  }
+
+  // 9. GET /audit-log
   if (p === "/audit-log" || p === "/audit") {
     const audit: AuditEntry[] = [
       { id: "a1", actor: "system", action: "session_initialized", payload: { mode: "active" }, created_at: new Date().toISOString() },

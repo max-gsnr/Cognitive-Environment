@@ -20,7 +20,7 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
   profileId,
   skillId,
   interests = [],
-  sessionLength = 10,
+  sessionLength = 5,
   gameId = null,
   gameVersion = null,
   onQuestionLoaded,

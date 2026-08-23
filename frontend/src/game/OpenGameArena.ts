@@ -125,7 +125,7 @@ export class OpenGameArena {
 
   public profileId: string;
   public skillId: string;
-  public sessionLength: number = 10;
+  public sessionLength: number = 5;
   // The build of the game this session is running, stamped onto every attempt so
   // a release can be measured afterwards rather than argued about.
   public gameId: string | null = null;
