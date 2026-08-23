@@ -7,6 +7,12 @@ venv/
 *.egg-info/
 .DS_Store
 
+# Orbit
+.env
+*.db
+node_modules/
+dist/
+
 # Entire keeps logs and scratch state here; settings.json is meant to be shared.
 .entire/logs/
 .entire/tmp/

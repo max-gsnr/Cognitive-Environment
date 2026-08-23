@@ -1,0 +1,203 @@
+import pytest
+from fastapi.testclient import TestClient
+
+from app import difficulty
+from app.db import SessionLocal, init_db
+from app.main import app
+from app.models import Attempt, ChildProfile, SubjectMastery
+from app.routers.games import gates_passed
+
+
+@pytest.fixture(scope="module")
+def client():
+    init_db()
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def profile():
+    init_db()
+    with SessionLocal() as session:
+        child = ChildProfile(
+            name="Leo",
+            age=7,
+            interests=["outer space", "trains"],
+            leniency_band="low",
+            restlessness_interpretation="distraction",
+            difficulty_floor={
+                "addition": "single_digit",
+                "subtraction": "single_digit",
+            },
+            session_length=10,
+            constraints={},
+        )
+        session.add(child)
+        session.flush()
+        for skill_id in ("addition", "subtraction"):
+            session.add(
+                SubjectMastery(
+                    profile_id=child.id,
+                    skill_id=skill_id,
+                    difficulty_vector={
+                        **difficulty.base_vector(2),
+                        "magnitude": "mid_double",
+                    },
+                )
+            )
+        session.commit()
+        return child.id
+
+
+def test_health(client):
+    body = client.get("/health").json()
+    assert body["status"] == "ok"
+
+
+def test_skills_are_seeded(client):
+    ids = {skill["id"] for skill in client.get("/skills").json()}
+    assert ids == {"addition", "subtraction"}
+
+
+def test_next_question_matches_the_current_vector(client, profile):
+    body = client.get(
+        f"/profiles/{profile}/skills/addition/next-question"
+    ).json()
+    a, b = body["operands"]
+    assert body["operator"] == "+"
+    assert body["correct_answer"] == a + b
+    assert body["difficulty_vector_snapshot"]["magnitude"] == "mid_double"
+
+
+def seed_tier_history(profile_id, skill_id, latency_ms=3000, count=5):
+    """A tier only has a pace once five correct attempts sit in it."""
+    with SessionLocal() as session:
+        mastery = session.get(SubjectMastery, (profile_id, skill_id))
+        tier = difficulty.tier_key(mastery.difficulty_vector)
+        operator = "+" if skill_id == "addition" else "-"
+        for _ in range(count):
+            session.add(
+                Attempt(
+                    profile_id=profile_id,
+                    skill_id=skill_id,
+                    operands=[40, 30],
+                    operator=operator,
+                    answer_given=70 if operator == "+" else 10,
+                    correct_answer=70 if operator == "+" else 10,
+                    is_correct=True,
+                    error_class="correct",
+                    difficulty_vector_snapshot=mastery.difficulty_vector,
+                    tier_key=tier,
+                    latency_to_submit_ms=latency_ms,
+                )
+            )
+        session.commit()
+
+
+def test_the_two_skills_move_independently(client, profile):
+    """The demo's central beat: fast addition hardens while slow subtraction softens."""
+    seed_tier_history(profile, "subtraction")
+
+    for _ in range(6):
+        question = client.get(
+            f"/profiles/{profile}/skills/addition/next-question"
+        ).json()
+        client.post(
+            "/attempts",
+            json={
+                "profile_id": profile,
+                "skill_id": "addition",
+                "operands": question["operands"],
+                "operator": "+",
+                "answer_given": question["correct_answer"],
+                "latency_to_submit_ms": 1200,
+            },
+        )
+
+    for _ in range(6):
+        question = client.get(
+            f"/profiles/{profile}/skills/subtraction/next-question"
+        ).json()
+        client.post(
+            "/attempts",
+            json={
+                "profile_id": profile,
+                "skill_id": "subtraction",
+                "operands": question["operands"],
+                "operator": "-",
+                "answer_given": question["correct_answer"],
+                "latency_to_submit_ms": 30000,
+            },
+        )
+
+    detail = client.get(f"/profiles/{profile}").json()
+    vectors = {row["skill_id"]: row["difficulty_vector"] for row in detail["mastery"]}
+    addition_rank = difficulty.rank(vectors["addition"], "addition")
+    subtraction_rank = difficulty.rank(vectors["subtraction"], "subtraction")
+    start = difficulty.rank(
+        {**difficulty.base_vector(2), "magnitude": "mid_double"}, "addition"
+    )
+    assert addition_rank > start
+    assert subtraction_rank <= start
+
+
+def test_attempt_reports_the_error_class(client, profile):
+    response = client.post(
+        "/attempts",
+        json={
+            "profile_id": profile,
+            "skill_id": "subtraction",
+            "operands": [52, 27],
+            "operator": "-",
+            "answer_given": 35,
+            "latency_to_submit_ms": 4000,
+        },
+    )
+    body = response.json()
+    assert body["is_correct"] is False
+    assert body["error_class"] == "borrow_omitted"
+
+
+def test_notes_and_audit_log(client, profile):
+    client.post(
+        f"/profiles/{profile}/notes",
+        json={"author": "teacher", "note": "rough week at home"},
+    )
+    actions = {entry["action"] for entry in client.get("/audit-log").json()}
+    assert "note_added" in actions
+
+
+def test_profile_patch_records_a_diff(client, profile):
+    client.patch(f"/profiles/{profile}", json={"session_length": 6})
+    entry = next(
+        item
+        for item in client.get("/audit-log").json()
+        if item["action"] == "profile_updated"
+    )
+    assert entry["payload"]["diff"]["session_length"]["after"] == 6
+
+
+def test_a_missing_gate_is_a_failure():
+    assert gates_passed({"schema": "pass"}) is False
+    assert (
+        gates_passed(
+            {
+                "schema": "pass",
+                "assertions": "passed",
+                "playthrough": "pass",
+                "render_accessibility": "failed",
+            }
+        )
+        is False
+    )
+    assert (
+        gates_passed(
+            {
+                "schema": "pass",
+                "assertions": "pass",
+                "playthrough": "pass",
+                "render_accessibility": "pass",
+            }
+        )
+        is True
+    )
