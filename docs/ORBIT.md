@@ -99,7 +99,7 @@ make the whole result meaningless:
 
 ```bash
 export DEVIN_API_KEY=...        # never committed
-export DEVIN_ORG_ID=org-...
+export DEVIN_ORG_ID=org-...   # optional; only the v3 endpoints are org-scoped
 python -m orbit.cli evaluate games/orbit/index.html --seeds 1 --record child.json
 python -m orbit.cli evolve \
   --repo max-gsnr/Cognitive-Environment \
@@ -107,7 +107,18 @@ python -m orbit.cli evolve \
   --trace child.json --generations 1 --islands 2 --max-acu 8
 ```
 
-Without `DEVIN_API_KEY` / `DEVIN_ORG_ID` the command exits 3 and explains why.
+Without `DEVIN_API_KEY` the command exits 3 and explains why.
+
+The client tries the org-scoped v3 session endpoints and falls back to v1 when they answer
+403 — which is what a user-scoped `apk_user_…` key gets. Both create real sessions; pin one
+with `DEVIN_API_VERSION`. One caveat: v1's session payload carries no `acus_consumed`, so on
+that path the recorded ACUs are 0 while `--max-acu` still caps every session.
+
+A verified live run (1 generation, 1 island, `--max-acu 8`) went: session
+`devin-1605a2d1cab64c00b1d46b748fe93738` edited the game on
+`orbit/gen1-strengthen_scaffold-43148a` (persistent worked decomposition on the number line),
+the orchestrator fetched that branch, gates passed, and headless Chromium scored it 0.861
+against the seed's 0.656 — so it was promoted.
 
 Output is `.orbit/provenance.json`: per-generation ACUs, every candidate with its operator,
 Devin session id, gate failures and metrics, the bandit's posterior over operators, and the
@@ -134,7 +145,7 @@ learner is not spent on. Untried operators are tried before any repeat.
 | `orbit/operators.py` | mutation operators and their prompts |
 | `orbit/bandit.py` | UCB over operators |
 | `orbit/archive.py` | islands, novelty rejection, parent sampling, lineage |
-| `orbit/devin.py` | Devin v3 API client (standard library only) |
+| `orbit/devin.py` | Devin API client, v3 with a v1 fallback (standard library only) |
 | `orbit/evolve.py` | the loop and the provenance record |
 
 ## Sources
