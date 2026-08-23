@@ -117,16 +117,21 @@ export function IntakePage() {
   const handleFinalizeProfile = () => {
     if (!turn) return;
     void guard(async () => {
+      const interestsArray = interests.split(",").map((s) => s.trim()).filter(Boolean);
       const created = await api.post<{ profile_id: string }>(
         `/intake/${turn.intake_id}/finalize`,
         {
           name: name.trim(),
           age: Number(age) || 8,
           neurodivergence,
-          interests,
+          interests: interestsArray.length ? interestsArray : ["general games"],
         }
       );
-      navigate(`/profiles/${created.profile_id}`);
+      if (created && created.profile_id) {
+        navigate(`/profiles/${created.profile_id}`);
+      } else {
+        navigate("/");
+      }
     });
   };
 
