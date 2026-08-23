@@ -266,7 +266,7 @@
       T.markActive();
     } catch (err) {
       el.feedback.className = "feedback is-gentle";
-      el.feedback.textContent = "Taking a moment. Press Enter to try again.";
+      el.feedback.textContent = "Loading the next tokens. Hang on.";
       scheduleQuestionRetry();
     }
     state.busy = false;
