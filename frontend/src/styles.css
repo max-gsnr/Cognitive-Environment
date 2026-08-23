@@ -4,6 +4,7 @@
   --calm: #3f6fb5;
   --calm-soft: #e4ecf9;
   --ok: #2f7a5a;
+  --space-dark: #0b0f19;
   color-scheme: light;
 }
 
@@ -40,6 +41,7 @@ a {
   font-size: 20px;
   font-weight: 700;
   text-decoration: none;
+  color: var(--ink);
 }
 
 .shell nav {
@@ -48,13 +50,14 @@ a {
 }
 
 main {
-  max-width: 900px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 32px;
+  padding: 24px 16px;
 }
 
 h1 {
   font-size: 26px;
+  margin-top: 0;
 }
 
 .card {
@@ -73,6 +76,15 @@ button {
   background: var(--calm);
   color: #fff;
   cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+button:hover:not(:disabled) {
+  opacity: 0.95;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 button.secondary {
@@ -137,37 +149,310 @@ ul.plain {
   color: #8a2f2f;
 }
 
-/* The play surface: one focal point, no timer, no red. */
-.play {
-  text-align: center;
-  padding: 48px 24px;
+/* ==========================================================================
+   OpenGame Arena & Orbit Canvas Styling
+   ========================================================================== */
+
+.play-page-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.play .sum {
-  font-size: 64px;
+.play-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hud-badge {
+  background: #0f172a;
+  color: #38bdf8;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid #1e293b;
+}
+
+.orbit-game-container {
+  display: flex;
+  flex-direction: column;
+  background: #0b0f19;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  border: 1px solid #1e293b;
+}
+
+.game-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.theme-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.pill-btn {
+  padding: 5px 12px;
+  font-size: 13px;
+  border-radius: 16px;
+  background: #1e293b;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  cursor: pointer;
+}
+
+.pill-btn.active {
+  background: #38bdf8;
+  color: #0f172a;
+  font-weight: 600;
+  border-color: #38bdf8;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  background: #0b0f19;
+}
+
+.orbit-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.game-bottom-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #0f172a;
+  border-top: 1px solid #1e293b;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hybrid-keypad-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.keypad-label {
+  color: #94a3b8;
+  font-size: 13px;
+  margin: 0;
+}
+
+.keypad-input {
+  max-width: 130px;
+  background: #1e293b;
+  color: #fff;
+  border: 1px solid #334155;
+  text-align: center;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 4px;
-  margin-bottom: 24px;
+  padding: 6px 10px;
+  border-radius: 8px;
 }
 
-.play input {
-  font-size: 40px;
-  text-align: center;
-  max-width: 220px;
-  margin: 0 auto;
+.keypad-input:focus {
+  border-color: #38bdf8;
+  outline: none;
 }
 
-.play .feedback {
-  margin-top: 24px;
-  font-size: 20px;
-  min-height: 32px;
-  color: var(--ok);
-  /* Transitions stay slow enough to sit far below 3Hz. */
-  transition: opacity 400ms ease;
+.keypad-submit {
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 8px;
 }
 
-.play .feedback.retry {
-  color: var(--calm);
+.controls-legend {
+  display: flex;
+  gap: 16px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.teacher-toggle-bar {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.teacher-card {
+  border-left: 4px solid var(--calm);
+}
+
+.report-card {
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   Game Creator Studio Styling
+   ========================================================================== */
+
+.studio-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid #e3e6ef;
+  font-weight: 500;
+}
+
+.tab-btn.active {
+  background: var(--calm);
+  color: #fff;
+  border-color: var(--calm);
+}
+
+.studio-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.studio-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.theme-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+}
+
+.theme-card.selected {
+  border-width: 2px;
+  background: #f0fdf4;
+}
+
+.theme-preview {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.radio-group {
+  margin-top: 8px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+}
+
+.radio-label input {
+  width: auto;
+  margin-top: 4px;
+}
+
+.quality-checklist {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.quality-checklist h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+
+.gates-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+}
+
+.gate-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.gate-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  font-weight: bold;
+}
+
+.studio-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.launch-btn {
+  font-size: 16px;
+  padding: 12px 28px;
+  background: #16a34a;
+  border-color: #16a34a;
+  font-weight: 600;
 }
 
 .teacher-view {
@@ -185,14 +470,252 @@ ul.plain {
   margin: 0;
 }
 
-.diff {
+/* Akinator Intake Wizard Styles */
+.intake-wizard-container {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 10px 0 40px;
+}
+
+.intake-header {
+  margin-bottom: 24px;
+}
+
+.intake-header h1 {
+  margin-bottom: 8px;
+}
+
+.wizard-card {
+  padding: 28px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+}
+
+.wizard-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.akinator-question {
+  font-size: 22px;
+  color: #1e293b;
+  margin: 12px 0 20px;
+  line-height: 1.4;
+}
+
+.form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+  margin-top: 20px;
 }
 
-.diff h3 {
-  margin: 0 0 8px;
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group input,
+.form-group select {
+  font-size: 15px;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+.form-group select {
+  background: #fff;
+  cursor: pointer;
+}
+
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.chips-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.chip-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chip-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Choice Cards Grid */
+.choice-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.choice-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  color: #1e293b;
+  text-align: left;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.choice-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.choice-card.selected {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.choice-dot {
+  color: #3b82f6;
+  font-size: 18px;
+}
+
+.custom-input-box {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.custom-input-box input {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
   font-size: 14px;
-  color: #5a6480;
+}
+
+.wizard-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.launch-wizard-btn,
+.launch-profile-btn {
+  font-size: 16px;
+  padding: 12px 28px;
+  font-weight: 600;
+}
+
+/* Summary Preview Box */
+.summary-preview-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.summary-preview-box h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #0f172a;
+}
+
+.summary-preview-box li {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #334155;
+}
+
+/* Roster Layout */
+.roster-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.roster-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.roster-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.roster-card-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Profile Mastery Section Layout */
+.mastery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.mastery-item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mastery-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mastery-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }

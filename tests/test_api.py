@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from app.models import (
     ChildProfile,
     Game,
     IntakeSession,
+    ReportedProblem,
     SubjectMastery,
 )
 from app.routers import games, intake
@@ -357,6 +359,39 @@ def test_only_a_gated_version_can_go_live(client, profile):
         broken_id = broken.id
 
     assert client.post(f"/games/{broken_id}/rollback").status_code == 409
+
+
+def test_an_old_complaint_elsewhere_does_not_count_as_frustration(client, profile):
+    """Reported problems are never deleted, so the count must be scoped."""
+    with SessionLocal() as session:
+        game = Game(profile_id=profile, skill_id="addition", version=1, status="ready")
+        other = Game(profile_id=profile, skill_id="subtraction", version=1)
+        session.add_all([game, other])
+        session.commit()
+        session.add_all(
+            [
+                ReportedProblem(
+                    profile_id=profile, game_id=other.id, description="stuck"
+                ),
+                ReportedProblem(
+                    profile_id=profile,
+                    game_id=game.id,
+                    description="froze last month",
+                    created_at=datetime.now(UTC).replace(tzinfo=None)
+                    - timedelta(days=30),
+                ),
+            ]
+        )
+        session.commit()
+        since = datetime.now(UTC) - timedelta(days=3)
+
+        assert games._recent_problem_count(session, game, since) == 0
+
+        session.add(
+            ReportedProblem(profile_id=profile, game_id=game.id, description="froze")
+        )
+        session.commit()
+        assert games._recent_problem_count(session, game, since) == 1
 
 
 def test_a_session_reporting_its_own_gates_green_cannot_ship_a_broken_game(

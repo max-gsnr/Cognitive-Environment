@@ -183,7 +183,7 @@ async def iterate_game(
 
     since = datetime.now(UTC) - timedelta(days=3)
     breakdown = _error_class_breakdown(session, current.profile_id, current.skill_id)
-    signals = _signals(session, current, len(_problems(session, current.profile_id)))
+    signals = _signals(session, current, _recent_problem_count(session, current, since))
     notes = session.scalars(
         select(DevelopmentNote)
         .where(DevelopmentNote.profile_id == current.profile_id)
@@ -500,6 +500,22 @@ def _provenance(template: str, kind: str) -> dict[str, Any]:
         "agent": "devin",
         "created_at": datetime.now(UTC).isoformat(),
     }
+
+
+def _recent_problem_count(session: Session, game: Game, since: datetime) -> int:
+    """Only this version's complaints, in the same window as the telemetry.
+
+    A problem reported months ago on another skill must not pin every future
+    diagnosis to frustration -- reported problems are never deleted.
+    """
+    return len(
+        session.scalars(
+            select(ReportedProblem).where(
+                ReportedProblem.game_id == game.id,
+                ReportedProblem.created_at >= since.replace(tzinfo=None),
+            )
+        ).all()
+    )
 
 
 def _problems(session: Session, profile_id: str) -> list[ReportedProblem]:
