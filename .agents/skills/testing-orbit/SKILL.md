@@ -33,7 +33,26 @@ from app import difficulty
 Mastery rows are required: `POST /attempts` 404s ("no mastery row") without them.
 
 ## Showing the DB change live next to the UI (very good demo material)
-No terminal emulator is preinstalled on the Devin desktop: `sudo apt-get install -y xterm`
+Preferred: a small HTTP dashboard rather than a terminal — a green-on-black xterm reads badly
+in recordings. Serve an HTML page that polls the DB read-only every second and renders count
+cards, `subject_mastery` as difficulty chips (highlight the axis that changed), the newest ~12
+`attempts` as a table, `development_notes` / `reported_problems`, and `audit_log` payloads, and
+flash brand-new rows for one refresh. Then show it in a SECOND browser window tiled next to
+the app:
+```
+# a second Chrome instance needs its OWN profile dir, otherwise it aborts with
+# "Failed to create a ProcessSingleton for your profile directory"
+chrome --user-data-dir=/tmp/dbview_profile --window-position=800,0 --window-size=800,1130 URL &
+wmctrl -i -r <app-window-id> -e 0,0,0,796,1130   # app on the left half
+```
+Keep the CDP-controlled Chrome (the one computer-use drives) for the app, and run the read-only
+dashboard in the second instance. Note the app window can get resized when a page reflows —
+re-apply the wmctrl geometry if halves stop lining up. Before recording, clear `attempts`,
+`development_notes`, `reported_problems`, `audit_log` and reset the mastery vectors so the
+flashes read clearly, and set the game row back to `is_live=0` so "Make this the live version"
+can be shown on camera.
+
+Fallback: no terminal emulator is preinstalled on the Devin desktop: `sudo apt-get install -y xterm`
 works. Then tile with wmctrl (screen is 1600x1122 behind the 1024x768 tool coordinates):
 ```
 wmctrl -r "Chrome" -b remove,maximized_vert,maximized_horz
@@ -46,9 +65,37 @@ A ~40-line polling script that prints `subject_mastery`, the newest `attempts`,
 DB read-only (`sqlite3.connect("file:orbit.db?mode=ro", uri=True)`) so it never locks
 the app.
 
+## Demonstrating the biometric / behavioural columns
+`attempts` has `cursor_velocity_px_s`, `jitter_ratio`, `idle_time_ms`, `distraction_events`,
+`focus_score`, `is_synthetic`. Only the **canvas arcade** (`frontend/src/game/OpenGameArena.ts`,
+the default play mode) fills them; the static iframe game and the plain question form write
+NULL (the dashboard shows "—"). How to make each value move on camera:
+- answer in the canvas by typing into the "Math Coordinates" input and pressing Enter
+  ("Dock (Enter)"); clicking the canvas alone never submits.
+- `cursor_velocity_px_s` / `jitter_ratio`: sweep the mouse back and forth **over the canvas**
+  before answering (jitter = total path / straight-line distance, so zig-zagging gives 20-90x;
+  not touching the mouse gives exactly `0.00`, not NULL).
+- `idle_time_ms`: only accumulates when a pointermove arrives after a >1200 ms gap — move,
+  pause 3-4 s, then nudge the mouse again, otherwise idle stays 0.
+- `distraction_events`: comes from `window.blur`, e.g. clicking the other tiled window. It is a
+  per-question counter reset on each new question, but a blur that happens while the *next*
+  question is already loaded shows up on that later row.
+- `focus_score` = 100 − idle share − 25/blur − 15 if jitter > 2.8, so a jitter+idle+blur answer
+  lands in the red band (~27%) — good final frame for the gauge cards.
+- `hesitation_ms` and `cursor_peak_velocity_px_s` are accepted by `POST /attempts` but have no
+  columns; the play page's "Cognitive Latency Breakdown" card is response-only. Say so explicitly
+  when demoing, and don't expect them in the DB pane.
+- Teacher cards live behind the "Teacher Telemetry Inspector" button at the bottom of the play
+  page; they mirror the newest attempt's values, so screenshot them next to the DB row.
+- Known flakiness: the canvas can write phantom `attempts` rows (an answer never typed, and/or
+  operands from an already-answered question) — count rows before/after each submit and treat
+  extra `unclassified` rows as a bug, not as your own mis-click.
+
 ## Reaching each feature in the UI
-- Roster `/` → "Open profile" → `/profiles/:id`; Play button → `/play/:profileId/:skillId`.
-- Play page plain flow (used when no game is live): question, answer box, "Check",
+- Roster `/` → "Inspect Profile & Games" → `/profiles/:id`; "Play Game 🎮" → `/play/:profileId/:skillId`.
+- Play page defaults to the canvas arcade even when a game is live; "Switch to Static Iframe" /
+  "Switch to OpenGame Arcade" toggles the two.
+- Play page plain/static flow: question, answer box, "Send"/"Check",
   "Teacher view" toggle (shows the true answer, plain-English difficulty and
   `error_class → movement`).
 - Loop A (app/adaptation.py, app/ability.py) is rating-based with a 0.75-rung deadband, so
@@ -60,6 +107,9 @@ the app.
 - To show `carry_omitted` you first need a tier with `carries: true`; answer correctly
   until the teacher view says "with carrying", then submit the digit-wise sum mod 10
   (e.g. 25+18 → 33).
+- "Tell a grown-up" posts to `/games/<liveGame.id>/report-problem`, falling back to the literal
+  id `orbit-game-client` when nothing is live — and `_require_game` 404s on that, so you still
+  need a real live `Game` row before demoing report-a-problem.
 - The "Something wrong with the game?" / "Tell a grown-up" input only exists when a game
   is **live** for that skill. Without `DEVIN_API_KEY` you cannot generate one, but you can
   copy an existing `games/<other-profile>/<skill>/vN` directory to
