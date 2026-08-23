@@ -138,6 +138,28 @@ def test_two_errors_in_a_row_buy_an_easier_question():
     )
 
 
+def test_a_rest_item_is_not_also_a_repeated_question():
+    """An easier tier the game never draws is an easier tier the child never sees."""
+    vector = {**base_vector(2), "magnitude": "high_double", "carries": True}
+    operands = [45, 67]
+    decision = adaptation.next_vector(
+        vector=vector,
+        skill_id=ADDITION,
+        operands=operands,
+        operator="+",
+        answer_given=sum(operands) + 1,  # a counting slip, answered fast
+        latency_ms=1000,
+        baseline=3000,
+        floor=FLOOR,
+        leniency_band="medium",
+        rating=1000.0,
+        attempts_seen=6,
+        prior_errors_in_a_row=1,
+    )
+    assert decision.movement.direction == adaptation.DECREMENT
+    assert decision.movement.repeat_tier is False
+
+
 def test_a_wrong_answer_never_drops_below_the_profile_floor():
     floor = difficulty.floor_vector("double_digit")
     decisions = play([False] * 6, floor=floor)
