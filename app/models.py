@@ -99,6 +99,10 @@ class Attempt(Base):
     difficulty_vector_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON)
     tier_key: Mapped[str] = mapped_column(String, index=True)
     latency_to_submit_ms: Mapped[int] = mapped_column(Integer)
+    # Seeded demo rows look exactly like played ones, which is the point during a
+    # demo and a hazard everywhere else: anything training or evaluating on this
+    # table filters on this flag.
+    is_synthetic: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
@@ -135,7 +139,12 @@ class Game(Base):
     is_live: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String, default="generating")
     test_report: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # Devin's own gate report, plus ours under "independent" (see app/gates.py).
     gate_results: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # Which prompt wording and which agent produced this version. Two versions
+    # differing is otherwise unattributable: the model may have changed its mind,
+    # or we may have changed the instructions underneath it.
+    provenance: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

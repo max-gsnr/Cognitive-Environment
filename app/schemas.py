@@ -67,6 +67,9 @@ class AttemptRequest(BaseModel):
 
 
 class AttemptResponse(BaseModel):
+    # The stored row's id. The game forwards it into its answer_submitted event,
+    # which is what lets a telemetry event be joined to the attempt it describes.
+    attempt_id: str
     is_correct: bool
     error_class: str
     updated_difficulty_vector: dict[str, Any]

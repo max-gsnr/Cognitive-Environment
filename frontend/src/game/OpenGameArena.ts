@@ -313,6 +313,7 @@ export class OpenGameArena {
         game_id: `orbit-${this.theme.id}`,
         profile_id: this.profileId,
         skill_id: this.skillId,
+        attempt_id: result.attempt_id,
         correct: result.is_correct,
         time_to_solve_ms: latency,
         error_class: result.error_class || "unknown",

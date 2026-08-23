@@ -1,0 +1,30 @@
+<!doctype html>
+<!--
+  What the gates exist to catch: this game invents its own questions and grades
+  them client-side, emits almost no telemetry, flashes at 10Hz and gives keyboard
+  focus no visible style. Every one of those is a thing a session could still
+  report as "PASS - all gates green".
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture game (broken)</title>
+    <style>
+      .flash { animation: flash 0.1s infinite; }
+      @keyframes flash { from { background: #fff } to { background: #000 } }
+    </style>
+  </head>
+  <body>
+    <h1 id="prompt">...</h1>
+    <input id="answer" />
+    <script>
+      let a = 3, b = 4;
+      document.getElementById("prompt").textContent = a + " + " + b + " = ?";
+      document.getElementById("answer").addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        const correct = Number(e.target.value) === a + b;
+        document.title = correct ? "yes" : "no";
+      });
+    </script>
+  </body>
+</html>

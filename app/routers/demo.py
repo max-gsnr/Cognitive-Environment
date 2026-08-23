@@ -55,6 +55,9 @@ def seed_posthog_events(session: Session, game_id: str) -> int:
         "profile_id": game.profile_id,
         "skill_id": game.skill_id,
         "version": game.version,
+        # Seeded events are indistinguishable from played ones otherwise, and the
+        # signal summarizer runs over both.
+        "is_synthetic": True,
     }
     batch = [
         {
@@ -130,6 +133,7 @@ def seed_history(
                 difficulty_vector_snapshot=vector,
                 tier_key=tier,
                 latency_to_submit_ms=HISTORY_LATENCY_MS + rng.randint(-600, 600),
+                is_synthetic=True,
                 # Spread over the last two days so every row sits inside the
                 # baseline's three-day window.
                 created_at=now - timedelta(minutes=90 * (HISTORY_ATTEMPTS - index)),

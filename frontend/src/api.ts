@@ -84,6 +84,8 @@ export type Question = {
 };
 
 export type AttemptResult = {
+  /** The stored row, so a telemetry event can be joined to the attempt it describes. */
+  attempt_id: string;
   is_correct: boolean;
   error_class: string;
   updated_difficulty_vector: DifficultyVector;
