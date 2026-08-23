@@ -51,12 +51,13 @@ async def _next_question(transcript: list[dict[str, str]]) -> dict[str, Any]:
     if reply.get("complete") and len(transcript) < MINIMUM_QUESTIONS:
         reply = {"complete": False, **reply}
         reply["question"] = reply.get("question") or (
-            "What visual or sensory accommodations help them focus best during learning?"
+            "What visual or sensory accommodations help them focus best "
+            "during learning?"
         )
         reply["choices"] = [
             "Calm, muted colors with subtle sounds",
             "High contrast visuals with instant feedback",
-            "Minimal animation with no screen shake"
+            "Minimal animation with no screen shake",
         ]
         reply["complete"] = False
     return reply
@@ -64,27 +65,34 @@ async def _next_question(transcript: list[dict[str, str]]) -> dict[str, Any]:
 
 @router.post("/intake/start", response_model=IntakeStartResponse)
 async def start_intake(
-    body: IntakeStartRequest | None = None,
-    session: Session = Depends(get_session)
+    body: IntakeStartRequest | None = None, session: Session = Depends(get_session)
 ) -> IntakeStartResponse:
     initial_transcript: list[dict[str, str]] = []
-    
+
     if body:
         if body.name and body.age:
-            initial_transcript.append({
-                "question": "What is the child's name and age?",
-                "answer": f"Name: {body.name}, Age: {body.age}"
-            })
+            initial_transcript.append(
+                {
+                    "question": "What is the child's name and age?",
+                    "answer": f"Name: {body.name}, Age: {body.age}",
+                }
+            )
         if body.neurodivergence:
-            initial_transcript.append({
-                "question": "What is their learning profile / neurodivergence type?",
-                "answer": body.neurodivergence
-            })
+            initial_transcript.append(
+                {
+                    "question": (
+                        "What is their learning profile / neurodivergence type?"
+                    ),
+                    "answer": body.neurodivergence,
+                }
+            )
         if body.interests:
-            initial_transcript.append({
-                "question": "What are the child's top interests and passions?",
-                "answer": body.interests
-            })
+            initial_transcript.append(
+                {
+                    "question": "What are the child's top interests and passions?",
+                    "answer": body.interests,
+                }
+            )
 
     intake = IntakeSession(transcript=initial_transcript, status="in_progress")
     session.add(intake)
@@ -97,7 +105,9 @@ async def start_intake(
     return IntakeStartResponse(
         intake_id=intake.id,
         question=reply.get("question", ""),
-        input_type=reply.get("input_type", "choice" if reply.get("choices") else "text"),
+        input_type=reply.get(
+            "input_type", "choice" if reply.get("choices") else "text"
+        ),
         choices=reply.get("choices"),
         complete=reply.get("complete", False),
     )
@@ -123,9 +133,7 @@ async def answer_intake(
         intake.transcript = transcript
         intake.status = "complete"
         session.commit()
-        return IntakeStartResponse(
-            intake_id=intake.id, question="", complete=True
-        )
+        return IntakeStartResponse(intake_id=intake.id, question="", complete=True)
 
     transcript.append({"question": reply.get("question", "")})
     intake.transcript = transcript
@@ -133,7 +141,9 @@ async def answer_intake(
     return IntakeStartResponse(
         intake_id=intake.id,
         question=reply.get("question", ""),
-        input_type=reply.get("input_type", "choice" if reply.get("choices") else "text"),
+        input_type=reply.get(
+            "input_type", "choice" if reply.get("choices") else "text"
+        ),
         choices=reply.get("choices"),
         complete=False,
     )
@@ -164,10 +174,15 @@ async def finalize_intake(
     _seed_mastery(session, profile)
 
     # Add initial teacher intake note
-    summary_note = f"Initial Intake via AI Akinator: Profile configured for {profile.name} (Age {profile.age}). Interests: {', '.join(profile.interests)}. Leniency: {profile.leniency_band}."
+    summary_note = (
+        f"Initial Intake via AI Akinator: Profile configured for "
+        f"{profile.name} (Age {profile.age}). "
+        f"Interests: {', '.join(profile.interests)}. "
+        f"Leniency: {profile.leniency_band}."
+    )
     if body.neurodivergence:
         summary_note += f" Neurodivergence profile: {body.neurodivergence}."
-    
+
     note = DevelopmentNote(profile_id=profile.id, author="teacher", note=summary_note)
     session.add(note)
 
@@ -185,10 +200,10 @@ async def finalize_intake(
 def _profile_from_resolved(
     resolved: dict[str, Any],
     body: IntakeFinalizeRequest,
-    transcript: list[dict[str, str]]
+    transcript: list[dict[str, str]],
 ) -> ChildProfile:
     floor = resolved.get("difficulty_floor") or {}
-    
+
     # Extract interests from body or resolved or transcript
     interests = []
     if isinstance(body.interests, list) and body.interests:

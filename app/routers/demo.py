@@ -161,9 +161,10 @@ def seed_history(
 # difficulty is deliberately untouched across both, because that is the control
 # that makes the comparison mean anything --- if challenge fit moved too, the
 # Release Impact view says so instead of taking credit for it.
+# Focus is on the 0-100 scale the game reports, the same as any real attempt.
 IMPACT_BLOCKS: list[dict[str, Any]] = [
-    {"version": 1, "sittings": 3, "questions": 4, "focus": 0.41, "pace": 0.35},
-    {"version": 2, "sittings": 3, "questions": 10, "focus": 0.83, "pace": 1.0},
+    {"version": 1, "sittings": 3, "questions": 4, "focus": 41.0, "pace": 0.35},
+    {"version": 2, "sittings": 3, "questions": 10, "focus": 83.0, "pace": 1.0},
 ]
 
 
@@ -218,8 +219,8 @@ def seed_release_impact(
                         difficulty_vector_snapshot=vector,
                         tier_key=tier,
                         latency_to_submit_ms=latency + rng.randint(-300, 300),
-                        focus_score=round(focus + rng.uniform(-0.05, 0.05), 2),
-                        idle_time_ms=int(latency * (1.4 - focus)),
+                        focus_score=round(focus + rng.uniform(-5, 5), 2),
+                        idle_time_ms=int(latency * (1.4 - focus / 100)),
                         game_version=int(block["version"]),
                         is_synthetic=True,
                         created_at=start + timedelta(seconds=40 * step),

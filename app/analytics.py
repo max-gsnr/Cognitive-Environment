@@ -146,7 +146,12 @@ def session_metrics(
     ]
     idle_ms = sum(p for p in (r.idle_time_ms for r in rows[-len(shown) :]) if p)
     solve_ms = sum(p.latency_ms for p in shown)
-    focus = [r.focus_score for r in rows[-len(shown) :] if r.focus_score is not None]
+    # focus_score is stored 0-100; every rate on this model is a 0-1 share.
+    focus = [
+        r.focus_score / 100
+        for r in rows[-len(shown) :]
+        if r.focus_score is not None
+    ]
 
     return SessionMetrics(
         points=shown,
@@ -286,7 +291,7 @@ def _version_metrics(
     points = [point for sitting in sittings for _row, point in sitting]
     rows = [row for sitting in sittings for row, _point in sitting]
     completed = [s for s in sittings if len(s) >= session_length]
-    focus = [r.focus_score for r in rows if r.focus_score is not None]
+    focus = [r.focus_score / 100 for r in rows if r.focus_score is not None]
     guesses = [p for p in points if not p.correct and _is_guess(p)]
     laboured = [
         p
@@ -508,7 +513,11 @@ def _share(sitting: Sitting, predicate: Callable[[Point], bool]) -> float:
 
 
 def _focus(sitting: Sitting) -> float | None:
-    scores = [row.focus_score for row, _point in sitting if row.focus_score is not None]
+    scores = [
+        row.focus_score / 100
+        for row, _point in sitting
+        if row.focus_score is not None
+    ]
     return round(sum(scores) / len(scores), 3) if scores else None
 
 

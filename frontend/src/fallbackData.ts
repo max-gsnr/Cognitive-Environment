@@ -272,17 +272,17 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
       band_low: 0.65,
       band_high: 0.85,
       questions: 10,
-      challenge_fit: 82.5,
-      success_rate: 80.0,
-      on_pace_rate: 90.0,
+      challenge_fit: 0.825,
+      success_rate: 0.8,
+      on_pace_rate: 0.9,
       longest_error_run: 1,
       mean_recovery_questions: 1.2,
       tier_changes: 2,
       time_on_task_ms: 45000,
       idle_ms: 2000,
-      focus_share: 92.0,
+      focus_share: 0.92,
       mistake_mix: [{ error_class: "small_difference", label: "Small Difference", count: 2 }],
-      target_success: 80.0,
+      target_success: 0.8,
       session_length: 10,
       synthetic_share: 0,
     };
@@ -292,8 +292,8 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
   if (p.includes("release-impact")) {
     const impact: ReleaseImpact = {
       versions: [
-        { version: 1, label: "v1 (Standard)", sessions: 12, questions: 120, questions_per_session: 10, completion_rate: 85, dropoff_rate: 15, challenge_fit: 70, success_rate: 75, guess_rate: 10, laboured_rate: 15, focus_share: 80, longest_error_run: 3, first_seen: null, last_seen: null },
-        { version: 2, label: "v2 (Bespoke)", sessions: 15, questions: 150, questions_per_session: 10, completion_rate: 100, dropoff_rate: 0, challenge_fit: 88, success_rate: 85, guess_rate: 4, laboured_rate: 6, focus_share: 95, longest_error_run: 1, first_seen: null, last_seen: null },
+        { version: 1, label: "v1 (Standard)", sessions: 12, questions: 120, questions_per_session: 10, completion_rate: 0.85, dropoff_rate: 0.15, challenge_fit: 0.7, success_rate: 0.75, guess_rate: 0.1, laboured_rate: 0.15, focus_share: 0.8, longest_error_run: 3, first_seen: null, last_seen: null },
+        { version: 2, label: "v2 (Bespoke)", sessions: 15, questions: 150, questions_per_session: 10, completion_rate: 1, dropoff_rate: 0, challenge_fit: 0.88, success_rate: 0.85, guess_rate: 0.04, laboured_rate: 0.06, focus_share: 0.95, longest_error_run: 1, first_seen: null, last_seen: null },
       ],
       timeline: [],
       band_low: 0.65,

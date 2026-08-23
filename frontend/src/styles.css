@@ -209,6 +209,12 @@ html, body {
   padding: 0 20px;
 }
 
+/* The play page carries an 800px canvas next to a 440px monitor, so it needs a
+   wider column than the rest of the app or the monitor is clipped. */
+.main-play {
+  max-width: 1360px;
+}
+
 .main-landing {
   max-width: 100% !important;
   margin: 0 !important;
@@ -609,7 +615,7 @@ ul.plain {
   overflow-y: auto;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1360px) {
   .play-grid {
     grid-template-columns: 1fr;
   }

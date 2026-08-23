@@ -12,6 +12,7 @@ venv/
 *.db
 node_modules/
 dist/
+.demo/
 
 # Entire keeps logs and scratch state here; settings.json is meant to be shared.
 .entire/logs/

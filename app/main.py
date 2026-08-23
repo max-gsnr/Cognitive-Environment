@@ -52,9 +52,7 @@ app.include_router(analytics.router)
 
 
 os.makedirs(settings.games_root, exist_ok=True)
-app.mount(
-    "/games", StaticFiles(directory=settings.games_root, html=True), name="games"
-)
+app.mount("/games", StaticFiles(directory=settings.games_root, html=True), name="games")
 
 
 @app.get("/health")
@@ -74,10 +72,18 @@ _frontend_dist = os.path.join(_root_dir, "frontend", "dist")
 _frontend_public = os.path.join(_root_dir, "frontend", "public")
 
 if os.path.exists(os.path.join(_frontend_dist, "assets")):
-    app.mount("/assets", StaticFiles(directory=os.path.join(_frontend_dist, "assets")), name="assets")
+    app.mount(
+        "/assets",
+        StaticFiles(directory=os.path.join(_frontend_dist, "assets")),
+        name="assets",
+    )
 
 if os.path.exists(os.path.join(_frontend_public, "sequence")):
-    app.mount("/sequence", StaticFiles(directory=os.path.join(_frontend_public, "sequence")), name="sequence")
+    app.mount(
+        "/sequence",
+        StaticFiles(directory=os.path.join(_frontend_public, "sequence")),
+        name="sequence",
+    )
 
 
 @app.get("/{full_path:path}")
@@ -85,7 +91,10 @@ async def serve_spa(full_path: str):
     from fastapi.responses import FileResponse
 
     if not os.path.exists(os.path.join(_frontend_dist, "index.html")):
-        return {"status": "ok", "message": "FastAPI Backend Running (Frontend not yet built)"}
+        return {
+            "status": "ok",
+            "message": "FastAPI Backend Running (Frontend not yet built)",
+        }
 
     # Check dist directory for matching static file
     dist_file = os.path.join(_frontend_dist, full_path)
@@ -99,4 +108,3 @@ async def serve_spa(full_path: str):
 
     # Default to React SPA index.html for client-side routing
     return FileResponse(os.path.join(_frontend_dist, "index.html"))
-
