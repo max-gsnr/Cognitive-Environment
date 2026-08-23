@@ -465,6 +465,7 @@
     })
       .then(function (result) {
         Telemetry.capture("answer_submitted", {
+          attempt_id: result.attempt_id,
           correct: result.is_correct,
           time_to_solve_ms: latency,
           error_class: result.error_class,
@@ -522,6 +523,10 @@
   }
 
   function startLevel() {
+    // Nothing from the finished session may still be answerable while the
+    // first question of the new one is in flight.
+    question = null;
+    els.answer.value = "";
     answered = 0;
     scene.docked = 0;
     els.intro.hidden = true;
