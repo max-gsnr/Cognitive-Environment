@@ -17,9 +17,8 @@ export function Shell() {
 
           {/* 16-Bit Retro Arcade Top Header */}
           <header className="retro-arcade-header">
-            <NavLink to="/" className="brand-logo-link">
+            <NavLink to="/" className="brand-logo-link" title="NEURO Home">
               <img src="/neuro-logo.png" alt="NEURO" className="brand-logo-img" />
-              <span className="brand-title">NEURO</span>
             </NavLink>
             <nav className="retro-nav">
               <NavLink to="/roster" className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}>
