@@ -122,17 +122,17 @@ def normalize(payload: dict[str, Any], session_id: str) -> list[dict[str, Any]]:
             if not isinstance(text, str) or not text.strip():
                 continue
             kind = str(message.get("type", ""))
-            records.append(
-                {
-                    "type": (
-                        "user_message" if "user" in kind.lower() else "devin_message"
-                    ),
-                    "session_id": session_id,
-                    "timestamp": message.get("timestamp") or f"message-{index}",
-                    "message": text,
-                    "model": AGENT_NAME,
-                }
-            )
+            record: dict[str, Any] = {
+                "type": ("user_message" if "user" in kind.lower() else "devin_message"),
+                "session_id": session_id,
+                "timestamp": message.get("timestamp") or f"message-{index}",
+                "message": text,
+                "model": AGENT_NAME,
+            }
+            usage = message.get("usage")
+            if isinstance(usage, dict):
+                record["usage"] = usage
+            records.append(record)
 
     anchor = records[-1]["timestamp"] if records else ""
     structured = payload.get("structured_output")

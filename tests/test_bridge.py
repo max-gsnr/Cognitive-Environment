@@ -85,6 +85,23 @@ def test_normalize_reads_file_changes_from_structured_output() -> None:
     assert changes[0]["files"]["new"] == ["games/leo/v2/index.html"]
 
 
+def test_normalize_carries_per_message_token_usage() -> None:
+    """Usage must survive into the transcript or `calculate-tokens` reads zero."""
+    payload = {
+        "messages": [
+            {
+                "type": "devin_message",
+                "message": "Done.",
+                "usage": {"input_tokens": 120, "output_tokens": 34},
+            },
+            {"type": "user_message", "message": "Thanks.", "usage": "not-a-dict"},
+        ]
+    }
+    records = bridge.normalize(payload, SESSION_ID)
+    assert records[0]["usage"] == {"input_tokens": 120, "output_tokens": 34}
+    assert "usage" not in records[1]
+
+
 def test_normalize_ignores_empty_and_malformed_messages() -> None:
     payload = {"messages": [{"type": "user_message", "message": "  "}, "junk", 42]}
     assert bridge.normalize(payload, SESSION_ID) == []
