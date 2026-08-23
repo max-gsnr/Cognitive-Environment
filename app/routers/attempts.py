@@ -38,7 +38,12 @@ def submit_attempt(
         (profile.difficulty_floor or {}).get(body.skill_id, "single_digit")
     )
 
-    updated, movement, credit = adaptation.next_vector(
+    history = _history(session, body.profile_id, body.skill_id)
+    rating, attempts_seen = adaptation.replay(
+        history, vector, body.skill_id, profile.leniency_band
+    )
+
+    decision = adaptation.next_vector(
         vector=vector,
         skill_id=body.skill_id,
         operands=body.operands,
@@ -48,8 +53,11 @@ def submit_attempt(
         baseline=baseline,
         floor=floor,
         leniency_band=profile.leniency_band,
-        decrement_credit=mastery.decrement_credit,
+        rating=rating,
+        attempts_seen=attempts_seen,
+        prior_errors_in_a_row=adaptation.errors_in_a_row(history),
     )
+    movement = decision.movement
 
     session.add(
         Attempt(
@@ -66,18 +74,34 @@ def submit_attempt(
             latency_to_submit_ms=body.latency_to_submit_ms,
         )
     )
-    mastery.difficulty_vector = updated
-    mastery.decrement_credit = credit
+    mastery.difficulty_vector = decision.vector
     session.commit()
 
     return AttemptResponse(
         is_correct=body.answer_given == correct_answer,
         error_class=movement.error_class,
-        updated_difficulty_vector=updated,
+        updated_difficulty_vector=decision.vector,
         baseline_ms=baseline,
         movement=movement.direction,
         repeat_tier=movement.repeat_tier,
+        ability_rating=round(decision.rating, 1),
+        expected_success=round(decision.expected_success, 3),
     )
+
+
+def _history(
+    session: Session, profile_id: str, skill_id: str
+) -> list[tuple[dict[str, object], str, bool]]:
+    """Every prior attempt, oldest first, so the rating is a replay and not state."""
+    rows = session.scalars(
+        select(Attempt)
+        .where(Attempt.profile_id == profile_id, Attempt.skill_id == skill_id)
+        .order_by(Attempt.created_at, Attempt.id)
+    ).all()
+    return [
+        (row.difficulty_vector_snapshot, row.error_class, row.is_correct)
+        for row in rows
+    ]
 
 
 def _baseline_for_tier(

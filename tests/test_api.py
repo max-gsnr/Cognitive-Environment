@@ -217,7 +217,9 @@ def test_seeded_history_gives_the_tier_a_real_baseline(client, profile):
         },
     ).json()
     assert after["baseline_ms"] is not None
-    assert after["movement"] == "decrement"
+    # Correct but laboured holds the tier. It never used to: it took difficulty
+    # away, which punished a child for the slowness itself.
+    assert after["movement"] == "hold"
 
 
 def test_finalize_seeds_mastery_for_both_skills(client, monkeypatch):

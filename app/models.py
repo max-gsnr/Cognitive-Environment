@@ -10,7 +10,6 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
-    Float,
     ForeignKey,
     Integer,
     String,
@@ -74,10 +73,10 @@ class SubjectMastery(Base):
     skill_id: Mapped[str] = mapped_column(
         String, ForeignKey("skills.id"), primary_key=True
     )
+    # The tier the next question comes from. Loop A's ability estimate is not
+    # stored: it is replayed from the attempt log (see app/adaptation.py) so the
+    # difficulty a child saw is always reproducible from the audit trail.
     difficulty_vector: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
-    # Banked fraction of a decrement, so leniency scales movement without
-    # discarding evidence. See app/adaptation.py.
-    decrement_credit: Mapped[float] = mapped_column(Float, default=0.0)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=utcnow, onupdate=utcnow
     )
