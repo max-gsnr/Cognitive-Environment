@@ -118,6 +118,8 @@ export type AttemptResult = {
   baseline_ms: number | null;
   movement: string;
   repeat_tier: boolean;
+  ability_rating?: number;
+  expected_success?: number;
   focus_score?: number;
   jitter_ratio?: number;
   idle_time_ms?: number;

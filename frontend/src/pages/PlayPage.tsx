@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { ProfileDetail, Question, api } from "../api";
+import { AttemptResult, ProfileDetail, Question, api } from "../api";
 import { OrbitCanvas } from "../game/OrbitCanvas";
 import { getThemeForInterests } from "../game/OpenGameArena";
 import { EvolutionLog } from "../analytics/EvolutionLog";
@@ -16,6 +16,7 @@ export function PlayPage() {
   const [problem, setProblem] = useState("");
   const [showReport, setShowReport] = useState(false);
   const [activeVersion, setActiveVersion] = useState<number>(2);
+  const [lastResult, setLastResult] = useState<AttemptResult | null>(null);
   const [showEvolutionModal, setShowEvolutionModal] = useState<boolean>(false);
 
   const availableGames = detail?.games.filter((g) => g.skill_id === skillId) ?? [];
@@ -108,6 +109,7 @@ export function PlayPage() {
           gameId={selectedGame?.id ?? null}
           gameVersion={activeVersion}
           onQuestionLoaded={(q) => setQuestion(q)}
+          onAttemptResult={(res) => setLastResult(res)}
           onScoreUpdate={(s, a) => {
             setScore(s);
             setAnswered(a);
@@ -118,6 +120,40 @@ export function PlayPage() {
             }
           }}
         />
+
+        {/* Live Loop A Telemetry Strip */}
+        <div className="loop-a-telemetry-strip">
+          <div className="loop-a-title">
+            <span className="live-pulse"></span>
+            <strong>LOOP A (Adaptive Arithmetic &amp; Biometrics):</strong>
+          </div>
+          {lastResult ? (
+            <div className="loop-a-stats">
+              <span className={`telemetry-chip ${lastResult.is_correct ? "is-correct" : "is-wrong"}`}>
+                {lastResult.is_correct ? "✓ Correct" : "✗ Incorrect"} ({lastResult.error_class || "clean"})
+              </span>
+              <span className="telemetry-chip">
+                <strong>Rating:</strong> {lastResult.ability_rating ? Math.round(lastResult.ability_rating) : "1400"}
+              </span>
+              <span className="telemetry-chip">
+                <strong>Adapted Tier:</strong> {lastResult.updated_difficulty_vector.digits}D {lastResult.updated_difficulty_vector.magnitude}
+                {lastResult.updated_difficulty_vector.carries ? " (carries)" : ""}
+              </span>
+              <span className="telemetry-chip">
+                <strong>Movement:</strong> {lastResult.movement || "hold"}
+              </span>
+              {lastResult.jitter_ratio !== null && lastResult.jitter_ratio !== undefined && (
+                <span className="telemetry-chip">
+                  <strong>Jitter:</strong> {lastResult.jitter_ratio}×
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="loop-a-stats muted">
+              <span>Answer a problem above to see real-time ability adaptation &amp; biometrics update live.</span>
+            </div>
+          )}
+        </div>
 
         {/* Clean Problem Reporting Toggle */}
         <div className="play-footer-actions">

@@ -143,7 +143,7 @@ def init_db() -> None:
                         )
                     )
 
-                # Seed v1 (Baseline) and v2 (Devin Iterated - Live) Game versions
+                # Seed v1 (Baseline), v2 (Devin Iterated - Live), and v3 (Blocked Candidate)
                 g1_id = f"game-{student['name'].lower()}-{skill}-v1"
                 if session.get(Game, g1_id) is None:
                     session.add(
@@ -160,6 +160,21 @@ def init_db() -> None:
                                 "assertions": "PASS - no negative results",
                                 "playthrough": "PASS - verified reachable",
                                 "render_accessibility": "PASS - high contrast",
+                                "independent": {
+                                    "files": "PASS - index.html and game.js present",
+                                    "shell_contract": "PASS - calls next-question and attempts",
+                                    "instrumentation": "PASS - all 7 events emitted",
+                                    "no_fast_flashing": "PASS - slowest cycle 0.9s",
+                                    "focus_visible": "PASS - :focus-visible styled",
+                                    "playthrough": "PASS - answered 3 questions headless",
+                                    "passed": True,
+                                },
+                            },
+                            provenance={
+                                "prompt": "generate",
+                                "prompt_revision": "v1.0",
+                                "agent": "devin",
+                                "seeded": True,
                             },
                             test_report={
                                 "summary": f"Initial bespoke {skill} game generated for {student['name']}.",
@@ -191,6 +206,45 @@ def init_db() -> None:
                                 "assertions": "PASS - carries and borrows verified",
                                 "playthrough": "PASS - 100% completion reachable",
                                 "render_accessibility": "PASS - WCAG compliant",
+                                "independent": {
+                                    "files": "PASS - index.html and game.js present",
+                                    "shell_contract": "PASS - calls next-question and attempts",
+                                    "instrumentation": "PASS - all 7 events emitted",
+                                    "no_fast_flashing": "PASS - slowest cycle 0.6s",
+                                    "focus_visible": "PASS - :focus-visible styled",
+                                    "playthrough": "PASS - answered 3 questions headless",
+                                    "passed": True,
+                                },
+                            },
+                            provenance={
+                                "prompt": "iterate",
+                                "prompt_revision": "v2.1",
+                                "agent": "devin",
+                                "seeded": True,
+                                "from_version": 1,
+                                "telemetry_signals": {
+                                    "dominant_signal": "healthy_struggle",
+                                    "change_tier": "structural",
+                                    "suggested_fix": "Upgrade arithmetic difficulty floor to double-digit carrying",
+                                    "event_count": 148,
+                                    "signals": {
+                                        "questions": 12,
+                                        "answers": 11,
+                                        "idle_seconds": 35,
+                                        "solve_seconds": 64.2,
+                                        "idle_ratio": 0.35,
+                                        "immediate_corrections": 1,
+                                        "after_pause_corrections": 2,
+                                        "after_pause_ratio": 0.67,
+                                        "micro_jitter": 3,
+                                        "repetitive_orbit": 0,
+                                        "rage_clicks": 0,
+                                        "abandons": 0,
+                                        "disengaged_answers": 0,
+                                        "fast_wrong_ratio": 0.08,
+                                        "slow_correct_ratio": 0.15,
+                                    },
+                                },
                             },
                             test_report={
                                 "summary": f"Devin autonomous iteration for {student['name']}'s {skill} mission.",
@@ -203,6 +257,74 @@ def init_db() -> None:
                                     "Instrumented PostHog telemetry hooks for Loop A and Loop B",
                                 ],
                                 "before_after_diff_summary": f"v1 (single-digit baseline) → v2 (mildly increased difficulty with double-digit carrying, upgraded starfield, and instant feedback).",
+                            },
+                        )
+                    )
+
+                g3_id = f"game-{student['name'].lower()}-{skill}-v3"
+                if session.get(Game, g3_id) is None:
+                    session.add(
+                        Game(
+                            id=g3_id,
+                            profile_id=student["id"],
+                            skill_id=skill,
+                            version=3,
+                            status="gates_failed",
+                            is_live=False,
+                            gate_results={
+                                "schema": "PASS - all questions matched schema",
+                                "assertions": "PASS - 18 assertions passed",
+                                "playthrough": "PASS - completed simulated level",
+                                "render_accessibility": "PASS - no contrast regressions",
+                                "independent": {
+                                    "files": "PASS - index.html and game.js present",
+                                    "shell_contract": "PASS - calls next-question and attempts",
+                                    "instrumentation": "FAIL - idle_tick is no longer emitted during cooldown",
+                                    "no_fast_flashing": "PASS - slowest cycle 0.6s",
+                                    "focus_visible": "FAIL - disabled answer button loses focus ring",
+                                    "playthrough": "FAIL - stalled after question 1 of 3: answer field stayed disabled",
+                                    "passed": False,
+                                },
+                            },
+                            provenance={
+                                "prompt": "iterate",
+                                "prompt_revision": "v2.2",
+                                "agent": "devin",
+                                "seeded": True,
+                                "from_version": 2,
+                                "telemetry_signals": {
+                                    "dominant_signal": "impulsive_guessing",
+                                    "change_tier": "content",
+                                    "suggested_fix": "Add a ~2.5s gentle cooldown before the next guess is accepted",
+                                    "event_count": 96,
+                                    "signals": {
+                                        "questions": 9,
+                                        "answers": 9,
+                                        "idle_seconds": 25,
+                                        "solve_seconds": 41.2,
+                                        "idle_ratio": 0.378,
+                                        "immediate_corrections": 4,
+                                        "after_pause_corrections": 0,
+                                        "after_pause_ratio": 0.0,
+                                        "micro_jitter": 1,
+                                        "repetitive_orbit": 0,
+                                        "rage_clicks": 0,
+                                        "abandons": 0,
+                                        "disengaged_answers": 0,
+                                        "fast_wrong_ratio": 0.44,
+                                        "slow_correct_ratio": 0.11,
+                                    },
+                                },
+                            },
+                            test_report={
+                                "summary": "Experimental cooldown candidate to throttle impulsive guessing.",
+                                "diagnosis": "Frequent fast incorrect guesses detected.",
+                                "change_tier": "content",
+                                "changes_made": [
+                                    "Added 2.5s input cooldown timer",
+                                    "Temporarily disabled answer button during transition",
+                                ],
+                                "before_after_diff_summary": "Throttled input submission.",
                             },
                         )
                     )
