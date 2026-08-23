@@ -750,6 +750,10 @@ ul.plain {
   align-items: start;
 }
 
+.play-main {
+  min-width: 0;
+}
+
 .play-side {
   position: sticky;
   top: 16px;
@@ -810,6 +814,11 @@ ul.plain {
   background: #fafbfe;
   border: 1px solid var(--chart-grid);
   border-left: 3px solid var(--chart-muted);
+}
+
+/* Neutral is the default tile: no verdict attached, so the grey border stays. */
+.stat-neutral {
+  border-left-color: var(--chart-muted);
 }
 
 .stat-good {
@@ -1037,6 +1046,10 @@ ul.plain {
 
 .mini-fill.after {
   background: var(--chart-good);
+}
+
+.bar-label {
+  overflow-wrap: anywhere;
 }
 
 .bar-value {
