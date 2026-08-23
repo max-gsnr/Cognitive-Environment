@@ -122,11 +122,16 @@ def test_carry_flag_controls_whether_a_carry_is_present():
 
 def test_single_digit_magnitude_variants_are_safely_supported():
     for mag in ("single", "low_single", "mid_single", "high_single", "unknown_mag"):
-        vector = {"digits": 1, "magnitude": mag, "carries": False, "borrows": False, "zero_in_minuend": False}
+        vector = {
+            "digits": 1,
+            "magnitude": mag,
+            "carries": False,
+            "borrows": False,
+            "zero_in_minuend": False,
+        }
         assert difficulty.satisfiable(vector, ADDITION)
         assert difficulty.satisfiable(vector, SUBTRACTION)
         q = difficulty.next_question(vector, ADDITION)
         assert len(q["operands"]) == 2
         q_sub = difficulty.next_question(vector, SUBTRACTION)
         assert q_sub["operands"][0] >= q_sub["operands"][1]
-

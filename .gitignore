@@ -46,6 +46,7 @@ build/
 frontend/dist/
 frontend/node_modules/
 frontend/tsconfig.tsbuildinfo
+.demo/
 
 # Entire state
 .entire/logs/
