@@ -12,9 +12,9 @@ that runs with no build step and no external image or audio assets.
 
 ## 0. Technical Architecture
 
-- Resolution: logical 960x600, scaled to the element size and `devicePixelRatio`; the scene
-  letterboxes rather than reflows, and the equation banner is DOM (so it stays readable down
-  to 320px wide).
+- Resolution: logical 960x600, scaled to the canvas element and `devicePixelRatio`; the scene
+  letterboxes rather than reflows inside one bounded, chrome-framed stage centred in the
+  viewport. The stage has a HUD band above the canvas and a controls band below it.
 - Runtime: one `requestAnimationFrame` loop, fixed 1/60 s simulation step with an accumulator,
   max 4 catch-up steps per frame (borrowed from `BaseArenaScene.updateSpawner`'s
   delta-accumulator discipline).
@@ -36,7 +36,7 @@ Files:
 | File           | Role                                                                     |
 | -------------- | ------------------------------------------------------------------------ |
 | `index.html`   | Canvas element, HUD layer, dialog markup, script order                   |
-| `styles.css`   | Palette tokens, HUD layout, depth scale, focus states                    |
+| `styles.css`   | Palette tokens, stage shell, HUD bands, depth scale, focus states      |
 | `config.js`    | `window.ORBIT`: identity, constraints, and the whole `TUNING` block       |
 | `effects.js`   | `Effects` — constraint-gated juice (shake / trail / burst / floating text) |
 | `hud.js`       | `Hud` — parallel HUD layer, never drawn on canvas                        |
@@ -58,8 +58,8 @@ ring, everything drawn from soft-edged vector primitives, nothing brighter than 
 | Layer | Depth | Drawable      | Primitive                                                        | Palette token           | Motion                                  |
 | ----- | ----- | ------------- | ---------------------------------------------------------------- | ----------------------- | --------------------------------------- |
 | base  | 0     | `deepField`   | vertical linear gradient + one very soft radial bloom            | `--space-far`/`--space-near` | none                                |
-| mid   | 1     | `orbitRing`   | dashed ellipse, 1.5px, 22% alpha                                 | `--edge`                | none                                    |
-| mid   | 2     | `dockPad`     | rounded arc gate with two guide ticks                            | `--accent`              | 0.9 s alpha breathe, 0.18–0.30          |
+| mid   | 1     | `orbitRing`   | dashed ellipse approach guide, 1.5px, 22% alpha                  | `--edge`                | none                                    |
+| mid   | 2     | `dockPad`     | labelled ring with two guide ticks and `Dock`/`Docked` hub text   | `--accent`              | 0.9 s alpha breathe, 0.18–0.30          |
 | mid   | 3     | `starsFar`    | 60 dots r=0.8, alpha 0.25                                        | `--ink`                 | drift 6 px/s                            |
 | mid   | 4     | `starsMid`    | 28 dots r=1.2, alpha 0.35                                        | `--ink`                 | drift 14 px/s                           |
 | actor | 5     | `tug`         | hull polygon + cabin arc + two thruster trapezoids + nose accent | `--warm`/`--accent`     | pointer inertia, idle bob, heading lerp |
@@ -67,8 +67,18 @@ ring, everything drawn from soft-edged vector primitives, nothing brighter than 
 | actor | 7     | `pod`         | small hexagon carried under the hull                             | `--good`                | slides to `dockPad` on a correct answer |
 
 Palette tokens keep v3's values (`--ink #f4f6ff`, `--dim #aab3dd`, `--panel rgba(22,26,46,.82)`,
-`--edge #3c4570`, `--accent #9fb6f0`, `--good #bfe3c8`, `--warm #f2d9b0`), which satisfy
-`visual.color_palette: pastel_muted` and pass contrast against the field gradient.
+`--panel-solid #161a2e`, `--edge #3c4570`, `--accent #9fb6f0`, `--good #bfe3c8`,
+`--warm #f2d9b0`), which satisfy `visual.color_palette: pastel_muted` and pass contrast against
+the field gradient. The stage, equation banner, answer field, and report dialog use muted
+surfaces; the answer field and report dialog use opaque `--panel-solid` so moving canvas art
+never passes behind readable text.
+
+Presentation hierarchy is deliberate: one rounded stage frames three horizontal bands (equation
+and neutral progress dots above, play canvas in the middle, answer controls and feedback below).
+The equation is a bordered, padded chip using letter-spaced tabular/monospace digits and remains
+the single focal point. The dock target keeps its ring, adds the dashed approach guide and a
+short hub label, and changes `Dock` to `Docked` after a pod lands. No score, extra counters,
+theme/sound/fullscreen controls, or other competing focal elements are present.
 
 Audio registry (Web Audio, no files), only when `audio.sfx !== "none"`:
 
@@ -99,7 +109,10 @@ TUNING = {
   stars:  { far: { count: 60, radius: 0.8, alpha: 0.25, driftPxPerSec: 6 },
             mid: { count: 28, radius: 1.2, alpha: 0.35, driftPxPerSec: 14 },
             near:{ count: 12, radius: 1.8, alpha: 0.40, driftPxPerSec: 26 } },
-  dock:   { podTravelMs: 520, padBreatheMs: 900, padAlphaMin: 0.18, padAlphaMax: 0.30 },
+  dock:   { podTravelMs: 520, padBreatheMs: 900, padAlphaMin: 0.18, padAlphaMax: 0.30,
+            approachRadiusX: 174, approachRadiusY: 56, guideDash: [8, 12],
+            guideAlpha: 0.22, ringRadius: 78, guideTickInner: 78, guideTickOuter: 96,
+            labelFontPx: 16, guideLineWidth: 1.5, ringLineWidth: 7, tickLineWidth: 2 },
   feedback: { floatRisePx: 42, floatMs: 900, holdMs: 1200 },
   intro:  { typewriterMsPerChar: 28 },
   audio:  { tapHz: 660, tapMs: 60, chordHz: [523, 659, 784], chordMs: 220,
@@ -112,6 +125,11 @@ TUNING = {
 
 Depth scale (single source of truth, mirrored in `styles.css`):
 canvas `0` < HUD `150` < dialog overlay `300` < help/hint `500`.
+
+The stage is centred and chrome-framed with a rounded border and subtle shadow. Its three bands
+are horizontal: the equation/progress HUD above, the fixed logical canvas in the middle, and the
+answer field/Send/feedback controls below. CSS explicitly applies `[hidden] { display: none
+!important }` to prevent hidden scene panels from resurfacing.
 
 ---
 
@@ -188,6 +206,10 @@ Each preset must be fully implemented, not a stub that happens never to run for 
 `trail` drops `trailCount` fading hull silhouettes at `trailDelayMs` spacing (`trailAlpha`,
 `trailFadeMs`); `burst` throws `burstCount` pastel dots across `burstSpreadPx` over `burstMs`.
 The gate decides whether they run for a given profile — it is not a substitute for the effect.
+Shake is bound to positive impact (a pod docking) only. It must never fire on a wrong answer:
+for any profile that permits shake, jolting the screen on a mistake is exactly the punitive
+feedback `gentle_no_red_x` / `impossible_to_lose` rules out.
+
 | `floatText(text, tone)`     | always available (text feedback, not a particle)     | enabled       |
 | `tap` / `dock` / `settle`   | `audio.sfx !== "none"`                               | enabled       |
 
@@ -208,6 +230,12 @@ being drawn into the scene. Components:
 | `FeedbackSlot`   | One line, one tone class (`good` / `gentle` / `hint`)               |
 | `ReportButton`   | Opens `ReportDialog`                                               |
 | `ReportDialog`   | Textarea + Send + Close, `role="dialog"`, `aria-modal`, **Escape closes, focus is trapped, focus returns to the button** |
+
+The answer form sets `noValidate` so the browser never replaces the game's voice with a native
+pattern-validation bubble. The client keeps `pattern="[0-9]*"` for mobile numeric keyboards,
+validates production input itself, and shows the visible gentle "Numbers only" hint. The answer
+field is cleared and refocused for every new question. Its fill is opaque `--panel-solid`, as is
+the report-dialog surface, so live canvas art cannot show through readable controls.
 
 Absent by design: clock, countdown, timer bar, HP bar, score, streak meter, pause. `cognitive.timer`
 is `disabled` and `fail_state` is `impossible_to_lose`, so none of them may exist.

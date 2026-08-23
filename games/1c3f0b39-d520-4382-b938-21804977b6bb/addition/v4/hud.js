@@ -65,6 +65,7 @@
       const form = document.createElement("form");
       form.className = "answer-form";
       form.autocomplete = "off";
+      form.noValidate = true;
       const label = document.createElement("label");
       label.className = "sr-only";
       label.htmlFor = "answer";

@@ -205,25 +205,33 @@
             2);
     context.save();
     context.strokeStyle = P.edge;
-    context.lineWidth = 1.5;
-    context.globalAlpha = 0.22;
-    context.setLineDash([8, 12]);
+    context.lineWidth = T.dock.guideLineWidth;
+    context.globalAlpha = T.dock.guideAlpha;
+    context.setLineDash(T.dock.guideDash);
     context.beginPath();
-    context.ellipse(dock.x, dock.y, 174, 56, 0, 0, Math.PI * 2);
+    context.ellipse(
+      dock.x,
+      dock.y,
+      T.dock.approachRadiusX,
+      T.dock.approachRadiusY,
+      0,
+      0,
+      Math.PI * 2
+    );
     context.stroke();
     context.setLineDash([]);
     context.globalAlpha = breathe;
     context.strokeStyle = P.accent;
-    context.lineWidth = 7;
+    context.lineWidth = T.dock.ringLineWidth;
     context.beginPath();
-    context.arc(dock.x, dock.y, 78, 0, Math.PI * 2);
+    context.arc(dock.x, dock.y, T.dock.ringRadius, 0, Math.PI * 2);
     context.stroke();
-    context.lineWidth = 2;
+    context.lineWidth = T.dock.tickLineWidth;
     context.beginPath();
-    context.moveTo(dock.x - 96, dock.y);
-    context.lineTo(dock.x - 78, dock.y);
-    context.moveTo(dock.x + 78, dock.y);
-    context.lineTo(dock.x + 96, dock.y);
+    context.moveTo(dock.x - T.dock.guideTickOuter, dock.y);
+    context.lineTo(dock.x - T.dock.guideTickInner, dock.y);
+    context.moveTo(dock.x + T.dock.guideTickInner, dock.y);
+    context.lineTo(dock.x + T.dock.guideTickOuter, dock.y);
     context.stroke();
     context.globalAlpha = 1;
     for (let index = 0; index < docked; index += 1) {
@@ -231,14 +239,19 @@
       context.fillStyle = P.good;
       context.beginPath();
       context.arc(
-        dock.x + Math.cos(angle) * 78,
-        dock.y + Math.sin(angle) * 78,
+        dock.x + Math.cos(angle) * T.dock.ringRadius,
+        dock.y + Math.sin(angle) * T.dock.ringRadius,
         7,
         0,
         Math.PI * 2
       );
       context.fill();
     }
+    context.fillStyle = P.ink;
+    context.font = "600 " + T.dock.labelFontPx + "px ui-rounded, sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(docked > 0 ? "Docked" : "Dock", dock.x, dock.y);
     context.restore();
   }
 

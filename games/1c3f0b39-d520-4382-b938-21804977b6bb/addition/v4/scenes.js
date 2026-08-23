@@ -62,8 +62,9 @@
 
     resize() {
       this.dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      const bounds = this.canvas.getBoundingClientRect();
+      const width = bounds.width;
+      const height = bounds.height;
       this.scale = Math.min(
         width / this.logicalWidth,
         height / this.logicalHeight
@@ -77,9 +78,10 @@
     }
 
     toLogical(clientX, clientY) {
+      const bounds = this.canvas.getBoundingClientRect();
       return {
-        x: (clientX - this.offsetX) / this.scale,
-        y: (clientY - this.offsetY) / this.scale,
+        x: (clientX - bounds.left - this.offsetX) / this.scale,
+        y: (clientY - bounds.top - this.offsetY) / this.scale,
       };
     }
 
@@ -478,6 +480,7 @@
             window.OrbitWorld.dock.y
           );
           window.OrbitWorld.dockPod();
+          this.effects.shakeLight();
           this.effects.dock();
           this.effects.floatText(
             "Docked.",
@@ -516,7 +519,6 @@
     showFeedback(text, tone) {
       this.hud.setFeedback(text, tone);
       if (tone === "gentle" && text.indexOf("Almost") === 0) {
-        this.effects.shakeLight();
         this.effects.settle();
       }
     }
