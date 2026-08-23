@@ -1,0 +1,29 @@
+[project]
+name = "cognitive-environment"
+version = "0.1.0"
+description = "Entire integration for Devin: cloud agent sessions as repository checkpoints"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+entire-agent-devin = "entire_agent_devin.plugin:main"
+entire-devin-bridge = "entire_agent_devin.bridge:main"
+
+[tool.setuptools]
+package-dir = { "" = "tools" }
+packages = ["entire_agent_devin"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

@@ -1,0 +1,58 @@
+{
+  "session_id": "devin-entire-plugin-demo",
+  "status": "finished",
+  "title": "Add the entire-agent-devin external agent plugin",
+  "created_at": "2026-08-22T22:10:00Z",
+  "messages": [
+    {
+      "type": "user_message",
+      "timestamp": "2026-08-22T22:10:00Z",
+      "message": "Install Entire on this repo and make Devin a registered Entire agent."
+    },
+    {
+      "type": "devin_message",
+      "timestamp": "2026-08-22T22:12:30Z",
+      "message": "Entire discovers external agents as `entire-agent-<name>` executables on $PATH, speaking JSON over stdin/stdout at protocol version 1. Devin runs in the cloud so it has no local hook process; I am adding the plugin plus a bridge that turns Devin API session activity into Entire hook events.",
+      "usage": {"input_tokens": 4210, "output_tokens": 980}
+    },
+    {
+      "type": "tool_use",
+      "timestamp": "2026-08-22T22:14:00Z",
+      "tool": "write_file",
+      "input": {"path": "tools/entire_agent_devin/plugin.py"}
+    },
+    {
+      "type": "tool_use",
+      "timestamp": "2026-08-22T22:16:00Z",
+      "tool": "write_file",
+      "input": {"path": "tools/entire_agent_devin/transcript.py"}
+    },
+    {
+      "type": "tool_use",
+      "timestamp": "2026-08-22T22:18:00Z",
+      "tool": "write_file",
+      "input": {"path": "tools/entire_agent_devin/bridge.py"}
+    },
+    {
+      "type": "devin_message",
+      "timestamp": "2026-08-22T22:40:00Z",
+      "message": "Plugin implements info/detect/get-session-id/get-session-dir/resolve-session-file/read-session/write-session/read-transcript/chunk-transcript/reassemble-transcript/format-resume-command/parse-hook, and stores raw transcripts outside the working tree so cloud session data never lands in the repo.",
+      "usage": {"input_tokens": 8800, "output_tokens": 2100}
+    }
+  ],
+  "structured_output": {
+    "summary": "Registered Devin as an Entire external agent and bridged cloud sessions into Entire checkpoints.",
+    "files": {
+      "new": [
+        "tools/entire_agent_devin/__init__.py",
+        "tools/entire_agent_devin/plugin.py",
+        "tools/entire_agent_devin/transcript.py",
+        "tools/entire_agent_devin/bridge.py",
+        "bin/entire-agent-devin",
+        "bin/entire-devin-bridge"
+      ],
+      "modified": [],
+      "deleted": []
+    }
+  }
+}

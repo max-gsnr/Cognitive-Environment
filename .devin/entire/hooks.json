@@ -1,0 +1,12 @@
+{
+  "agent": "devin",
+  "hooks": {
+    "compaction": "entire hooks devin compaction",
+    "session-end": "entire hooks devin session-end",
+    "session-start": "entire hooks devin session-start",
+    "stop": "entire hooks devin stop",
+    "user-prompt-submit": "entire hooks devin user-prompt-submit"
+  },
+  "protocol_version": 1,
+  "transport": "entire-devin-bridge"
+}
