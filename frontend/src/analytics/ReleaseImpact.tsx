@@ -2,30 +2,23 @@
  * The v1 → v2 view: did shipping a new build of the game actually help?
  *
  * This is the release-impact dashboard every product team already has, pointed
- * at a child's sessions instead of a checkout funnel: engagement per version, a
- * completion funnel, and the trend per sitting with the release marked on it.
+ * at a child's sessions instead of a checkout funnel: engagement per version and
+ * a completion funnel for the build that is live.
  *
  * The honesty is in three places, and they are the reason this survives a
  * question from the floor: difficulty is reported *alongside* engagement (if the
  * work got easier, that explains an engagement lift and the caveats say so), the
- * per-sitting trend is shown rather than only two averages, and the caveats come
+ * share of the data that is seeded is stated on the panel, and the caveats come
  * from the backend rather than being written here.
  */
 import { useEffect, useState } from "react";
 
 import { ReleaseImpact as ReleaseImpactData, api } from "../api";
-import {
-  DeltaBars,
-  DeltaRow,
-  Figure,
-  Funnel,
-  Stat,
-  pct,
-} from "./charts";
+import { DeltaBars, DeltaRow, Figure, Funnel, Stat, pct } from "./charts";
 
-type Props = { profileId: string; skillId: string };
+type Props = { profileId: string; skillId: string; refreshKey?: number };
 
-export function ReleaseImpact({ profileId, skillId }: Props) {
+export function ReleaseImpact({ profileId, skillId, refreshKey = 0 }: Props) {
   const [data, setData] = useState<ReleaseImpactData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,24 +30,30 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
         setError(null);
       })
       .catch((cause: Error) => setError(cause.message));
-  }, [profileId, skillId]);
+  }, [profileId, skillId, refreshKey]);
 
-  if (error) return <p className="error">Release impact unavailable: {error}</p>;
-  if (!data) return <p className="muted">Loading release impact…</p>;
+  if (error) return <p className="error">Impact dashboard unavailable: {error}</p>;
+  if (!data) return <p className="muted">Loading impact comparison…</p>;
   if (!data.versions.length) {
     return (
-      <div className="card">
+      <div className="card monitor">
         <h2>Release Impact</h2>
         <p className="muted">
-          No completed sittings on record for {skillId} yet, so there is nothing to compare.
+          No practice has been recorded under a specific version of the {skillId} game yet,
+          so there is no release to compare against.
         </p>
       </div>
     );
   }
 
-  const before = data.versions[0];
-  const after = data.versions[data.versions.length - 1];
-  const single = data.versions.length < 2;
+  // Compare shipped versions to each other.
+  const shipped = data.versions.filter((version) => version.version !== null);
+  const after = shipped[shipped.length - 1] ?? data.versions[data.versions.length - 1];
+  const before =
+    shipped.length >= 2
+      ? shipped[shipped.length - 2]
+      : data.versions.find((version) => version !== after) ?? after;
+  const single = before === after;
 
   const rows: DeltaRow[] = [
     {
@@ -145,7 +144,7 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
       </div>
 
       <div className="stat-grid">
-        {data.versions.map((version) => (
+        {(shipped.length ? shipped : data.versions).map((version) => (
           <Stat
             key={version.label}
             label={`${version.label} — ${version.sessions} sitting${
@@ -159,7 +158,7 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
                   } change`
                 : `${version.questions} questions, challenge fit ${pct(version.challenge_fit)}`
             }
-            tone={version === data.versions[data.versions.length - 1] ? "good" : "neutral"}
+            tone={version === after ? "good" : "neutral"}
           />
         ))}
       </div>
@@ -181,35 +180,35 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
       )}
 
       <Figure
-        title="Where Sessions End"
+        title={`Where Sessions End on ${after.label}`}
         why={
-          "Of the sittings a child starts, how many get past the first few questions and how " +
-          "many reach the end. Attention, measured as behaviour rather than as a score."
+          "Of the sittings a child starts on the live build, how many get past the first " +
+          "few questions and how many reach the end. Attention, measured as behaviour " +
+          "rather than as a score."
         }
-        summary={funnelSummary(data)}
+        summary={funnelSummary(sittingsOf(data, after.version))}
       >
         <Funnel
           steps={[
             {
               label: "Sittings started",
-              value: data.timeline.length,
+              value: sittingsOf(data, after.version).length,
               hint: "a run of questions with no long break",
             },
             {
               label: "Reached 5 questions",
-              value: data.timeline.filter((point) => point.questions >= 5).length,
+              value: sittingsOf(data, after.version).filter((point) => point.questions >= 5)
+                .length,
               hint: "past the point where a bored child usually stops",
             },
             {
               label: "Finished the session",
-              value: data.timeline.filter((point) => point.completed).length,
+              value: sittingsOf(data, after.version).filter((point) => point.completed).length,
               hint: "played the full session length set at intake",
             },
           ]}
         />
       </Figure>
-
-
 
       <div className="caveats">
         <h3>Read this with the caveats</h3>
@@ -258,9 +257,16 @@ function headline(
   return `${Math.abs(practice).toFixed(1)} ${direction} questions per sitting, ${clean}.`;
 }
 
-function funnelSummary(data: ReleaseImpactData): string {
-  const started = data.timeline.length;
-  const finished = data.timeline.filter((point) => point.completed).length;
+function sittingsOf(
+  data: ReleaseImpactData,
+  version: number | null
+): ReleaseImpactData["timeline"] {
+  return data.timeline.filter((point) => point.version === version);
+}
+
+function funnelSummary(sittings: ReleaseImpactData["timeline"]): string {
+  const started = sittings.length;
+  const finished = sittings.filter((point) => point.completed).length;
   return `${started} sittings started, ${finished} finished (${pct(
     started ? finished / started : 0
   )}).`;

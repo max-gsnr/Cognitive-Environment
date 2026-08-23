@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { GameState, GameSummary, Profile, ProfileDetail, api } from "../api";
+import { EvolutionLog } from "../analytics/EvolutionLog";
 import { ReleaseImpact } from "../analytics/ReleaseImpact";
 
 const SKILLS = ["addition", "subtraction"] as const;
@@ -64,6 +65,15 @@ export function ProfilePage() {
     api
       .post("/demo/seed-release-impact", { profile_id: profileId, skill_id: skillId })
       .then(() => setImpactKey((key) => key + 1))
+      .catch((cause: Error) => setError(cause.message));
+
+  const seedEvolution = (skillId: string) =>
+    api
+      .post("/demo/seed-evolution", { profile_id: profileId, skill_id: skillId })
+      .then(() => {
+        setImpactKey((key) => key + 1);
+        load();
+      })
       .catch((cause: Error) => setError(cause.message));
 
   const rollback = (gameId: string) =>
@@ -138,6 +148,15 @@ export function ProfilePage() {
           </button>
         </div>
         <ReleaseImpact key={`${impactSkill}:${impactKey}`} profileId={profileId} skillId={impactSkill} />
+      </div>
+
+      <div className="impact-section">
+        <div className="impact-controls">
+          <button className="secondary" onClick={() => seedEvolution(impactSkill)}>
+            Seed a version history (demo)
+          </button>
+        </div>
+        <EvolutionLog profileId={profileId} skillId={impactSkill} refreshKey={impactKey} />
       </div>
 
       <div className="card">

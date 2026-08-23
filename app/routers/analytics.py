@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import ability, analytics
+from app import ability, analytics, evolution
 from app.db import get_session
 from app.models import Attempt, ChildProfile, Game, SubjectMastery
 
@@ -60,6 +60,36 @@ def release_impact(
     ]
     payload["synthetic_share"] = _synthetic_share(session, profile_id, skill_id)
     return payload
+
+
+@router.get("/profiles/{profile_id}/skills/{skill_id}/evolution")
+def evolution_log(
+    profile_id: str, skill_id: str, session: Session = Depends(get_session)
+) -> dict[str, Any]:
+    """Loop B: which versions were proposed, why, and which ones we refused."""
+    _profile(session, profile_id)
+    games = session.scalars(
+        select(Game)
+        .where(Game.profile_id == profile_id, Game.skill_id == skill_id)
+        .order_by(Game.version)
+    ).all()
+    return evolution.evolution_log(
+        [
+            evolution.GameRow(
+                id=game.id,
+                version=game.version,
+                status=game.status,
+                is_live=game.is_live,
+                created_at=game.created_at,
+                pr_url=game.pr_url,
+                devin_session_id=game.devin_session_id,
+                gate_results=game.gate_results,
+                test_report=game.test_report,
+                provenance=game.provenance,
+            )
+            for game in games
+        ]
+    )
 
 
 def _provenance(

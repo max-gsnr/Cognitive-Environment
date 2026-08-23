@@ -60,6 +60,7 @@ class AttemptRow:
     latency_ms: int
     tier_key: str
     game_version: int | None = None
+    #: A share of the question spent visibly on task, 0..1.
     focus_score: float | None = None
     idle_time_ms: int | None = None
     jitter_ratio: float | None = None
@@ -273,7 +274,7 @@ def _caveats(versions: list[VersionMetrics], sittings: list[Sitting]) -> list[st
         else:
             notes.append(
                 "Challenge fit held steady across versions, so the difficulty the "
-                "child faced is not what moved --- the game is."
+                "child faced is not what moved \u2014 the game is."
             )
     if len(sittings) < 4:
         notes.append("Fewer than four sittings in total: directional, not conclusive.")
@@ -525,7 +526,10 @@ def rows_from_attempts(attempts: Sequence[Attempt]) -> list[AttemptRow]:
             latency_ms=attempt.latency_to_submit_ms,
             tier_key=attempt.tier_key,
             game_version=attempt.game_version,
-            focus_score=attempt.focus_score,
+            # The game records focus out of 100; the dashboards speak in shares.
+            focus_score=(
+                attempt.focus_score / 100.0 if attempt.focus_score is not None else None
+            ),
             idle_time_ms=attempt.idle_time_ms,
             jitter_ratio=attempt.jitter_ratio,
         )

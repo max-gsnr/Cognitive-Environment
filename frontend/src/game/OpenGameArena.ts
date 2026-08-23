@@ -423,7 +423,11 @@ export class OpenGameArena {
       ? Math.hypot(this.lastCursorPos.x - this.startCursorPos.x, this.lastCursorPos.y - this.startCursorPos.y)
       : 25;
     const jitterRatio = Math.round((this.totalCursorDistancePx / Math.max(15, directDist)) * 100) / 100;
-    const rawFocus = 100 - (this.idleDurationMs / latency) * 45 - this.distractionEvents * 25 - (jitterRatio > 2.8 ? 15 : 0);
+    // Idle only counts while this question was on screen: the timer keeps running
+    // between questions and over the teacher panel, and unclamped it reports more
+    // idle time than the question lasted.
+    const idleMs = Math.round(Math.min(this.idleDurationMs, latency));
+    const rawFocus = 100 - (idleMs / latency) * 45 - this.distractionEvents * 25 - (jitterRatio > 2.8 ? 15 : 0);
     const focusScore = Math.round(Math.max(0, Math.min(100, rawFocus)) * 100) / 100;
 
     if (this.theme.id === "tennis") {
@@ -467,7 +471,7 @@ export class OpenGameArena {
         cursor_velocity_px_s: avgVelocity,
         cursor_peak_velocity_px_s: peakVelocity,
         jitter_ratio: jitterRatio,
-        idle_time_ms: Math.round(this.idleDurationMs),
+        idle_time_ms: idleMs,
         hesitation_ms: hesitation,
         distraction_events: this.distractionEvents,
         focus_score: focusScore,
@@ -478,7 +482,7 @@ export class OpenGameArena {
       // Augment result with local biometric nuance for real-time dashboard
       result.focus_score = focusScore;
       result.jitter_ratio = jitterRatio;
-      result.idle_time_ms = Math.round(this.idleDurationMs);
+      result.idle_time_ms = idleMs;
       result.cursor_velocity_px_s = avgVelocity;
       result.hesitation_ms = hesitation;
       result.distraction_events = this.distractionEvents;
@@ -494,7 +498,7 @@ export class OpenGameArena {
         cursor_velocity_px_s: avgVelocity,
         jitter_ratio: jitterRatio,
         focus_score: focusScore,
-        idle_time_ms: this.idleDurationMs,
+        idle_time_ms: idleMs,
         distraction_events: this.distractionEvents,
       });
 
