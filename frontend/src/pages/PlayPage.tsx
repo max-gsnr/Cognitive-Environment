@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 
 import { AttemptResult, DifficultyVector, ProfileDetail, Question, api } from "../api";
 import { OrbitCanvas } from "../game/OrbitCanvas";
+import { getThemeForInterests } from "../game/OpenGameArena";
 
 export function PlayPage() {
   const { profileId = "", skillId = "" } = useParams();
@@ -18,6 +19,7 @@ export function PlayPage() {
 
   const liveGame = detail?.games.find((game) => game.skill_id === skillId && game.is_live) ?? null;
   const sessionLength = detail?.profile.session_length ?? 10;
+  const activeTheme = getThemeForInterests(detail?.profile.interests);
 
   useEffect(() => {
     api
@@ -65,7 +67,7 @@ export function PlayPage() {
         </dd>
         <dt>Session Progress</dt>
         <dd>
-          {answered} of {sessionLength} star pods docked • Score: {score}
+          {answered} of {sessionLength} completed • Score: {score}
         </dd>
       </dl>
     </div>
@@ -93,10 +95,10 @@ export function PlayPage() {
     <div className="play-page-layout">
       <div className="play-header">
         <h1 style={{ textTransform: "capitalize" }}>
-          {detail?.profile.name || "Leo"}&apos;s {skillId} Space Docking Mission 🚀
+          {detail?.profile.name || "Student"}&apos;s {skillId} Mission — {activeTheme.name}
         </h1>
         <div className="hud-badge">
-          ✦ {answered} / {sessionLength} Star Pods
+          ✦ {answered} / {sessionLength} Completed
         </div>
       </div>
 
@@ -110,6 +112,7 @@ export function PlayPage() {
         <OrbitCanvas
           profileId={profileId}
           skillId={skillId}
+          interests={detail?.profile.interests}
           sessionLength={sessionLength}
           onQuestionLoaded={(q) => setQuestion(q)}
           onAttemptResult={(res) => setLastResult(res)}
