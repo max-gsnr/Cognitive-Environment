@@ -73,12 +73,15 @@ the field gradient. The stage, equation banner, answer field, and report dialog 
 surfaces; the answer field and report dialog use opaque `--panel-solid` so moving canvas art
 never passes behind readable text.
 
-Presentation hierarchy is deliberate: one rounded stage frames three horizontal bands (equation
-and neutral progress dots above, play canvas in the middle, answer controls and feedback below).
-The equation is a bordered, padded chip using letter-spaced tabular/monospace digits and remains
-the single focal point. The dock target keeps its ring, adds the dashed approach guide and a
-short hub label, and changes `Dock` to `Docked` after a pod lands. No score, extra counters,
-theme/sound/fullscreen controls, or other competing focal elements are present.
+Presentation hierarchy is deliberate: one rounded stage frames three horizontal bands (a HUD
+header with a dedicated progress rail above the equation chip, the play canvas in the middle,
+and answer controls and feedback below). The stage's middle band and the logical 960x600 canvas
+share the same aspect ratio, so the drawn field fills that band edge-to-edge without side
+gutters at any responsive scale. The equation is a bordered, padded chip using letter-spaced
+tabular/monospace digits and remains the single focal point; the progress dots never overlap it.
+The dock target keeps its ring, adds the dashed approach guide and a short hub label, and changes
+`Dock` to `Docked` after a pod lands. No score, extra counters, theme/sound/fullscreen controls,
+or other competing focal elements are present.
 
 Audio registry (Web Audio, no files), only when `audio.sfx !== "none"`:
 
@@ -127,9 +130,10 @@ Depth scale (single source of truth, mirrored in `styles.css`):
 canvas `0` < HUD `150` < dialog overlay `300` < help/hint `500`.
 
 The stage is centred and chrome-framed with a rounded border and subtle shadow. Its three bands
-are horizontal: the equation/progress HUD above, the fixed logical canvas in the middle, and the
-answer field/Send/feedback controls below. CSS explicitly applies `[hidden] { display: none
-!important }` to prevent hidden scene panels from resurfacing.
+are horizontal: the HUD header's progress rail and equation chip above, the fixed logical canvas
+in the middle with the same 960:600 aspect ratio as its band, and the answer field/Send/feedback
+controls below. CSS explicitly applies `[hidden] { display: none !important }` to prevent hidden
+scene panels from resurfacing.
 
 ---
 
