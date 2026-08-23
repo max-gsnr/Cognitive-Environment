@@ -41,12 +41,12 @@ export function PlayPage() {
       <h2>Teacher Telemetry & Biometric Nuance Stream</h2>
       <p className="muted">Live diagnostic stream tracking cognitive pace, cursor kinematics, and attention nuance.</p>
       
-      {/* Biometric Gauges Grid */}
+      {/* Biometric Gauges Grid (2 Decimal Precision) */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", margin: "16px 0" }}>
         <div style={{ background: "rgba(15, 23, 42, 0.6)", padding: "14px", borderRadius: "10px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
           <span style={{ fontSize: "12px", textTransform: "uppercase", color: "#94a3b8", fontWeight: 600 }}>⚡ Focus & Engagement Index</span>
           <div style={{ fontSize: "24px", fontWeight: 700, color: (lastResult?.focus_score ?? 100) >= 80 ? "#4ade80" : (lastResult?.focus_score ?? 100) >= 60 ? "#fbbf24" : "#f87171", marginTop: "4px" }}>
-            {lastResult?.focus_score !== undefined ? `${lastResult.focus_score}%` : "100% (High Focus)"}
+            {lastResult?.focus_score !== undefined ? `${lastResult.focus_score.toFixed(2)}%` : "100.00% (High Focus)"}
           </div>
           <small style={{ color: "#cbd5e1" }}>
             {(lastResult?.distraction_events ?? 0) > 0 ? `⚠️ ${lastResult?.distraction_events} distraction blurs` : "✓ Direct on-screen attention"}
@@ -56,20 +56,20 @@ export function PlayPage() {
         <div style={{ background: "rgba(15, 23, 42, 0.6)", padding: "14px", borderRadius: "10px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
           <span style={{ fontSize: "12px", textTransform: "uppercase", color: "#94a3b8", fontWeight: 600 }}>🖱️ Cursor Kinematics & Jitter</span>
           <div style={{ fontSize: "24px", fontWeight: 700, color: "#38bdf8", marginTop: "4px" }}>
-            {lastResult?.cursor_velocity_px_s ? `${Math.round(lastResult.cursor_velocity_px_s)} px/s` : "Tracking movement..."}
+            {lastResult?.cursor_velocity_px_s !== undefined ? `${lastResult.cursor_velocity_px_s.toFixed(2)} px/s` : "Tracking movement..."}
           </div>
           <small style={{ color: "#cbd5e1" }}>
-            Jitter: {lastResult?.jitter_ratio ? `${lastResult.jitter_ratio}x` : "1.0x"} • {(lastResult?.jitter_ratio ?? 1) > 2.5 ? "Restless / Tremor" : "Smooth Intentional"}
+            Jitter: {lastResult?.jitter_ratio !== undefined ? `${lastResult.jitter_ratio.toFixed(2)}x` : "1.00x"} • {(lastResult?.jitter_ratio ?? 1) > 2.5 ? "Restless / Tremor" : "Smooth Intentional"}
           </small>
         </div>
 
         <div style={{ background: "rgba(15, 23, 42, 0.6)", padding: "14px", borderRadius: "10px", border: "1px solid rgba(255, 255, 255, 0.1)" }}>
           <span style={{ fontSize: "12px", textTransform: "uppercase", color: "#94a3b8", fontWeight: 600 }}>⏱️ Cognitive Latency Breakdown</span>
           <div style={{ fontSize: "24px", fontWeight: 700, color: "#c084fc", marginTop: "4px" }}>
-            {lastResult?.hesitation_ms ? `${(lastResult.hesitation_ms / 1000).toFixed(1)}s` : "0.0s"} Hesitation
+            {lastResult?.hesitation_ms !== undefined ? `${(lastResult.hesitation_ms / 1000).toFixed(2)}s` : "0.00s"} Hesitation
           </div>
           <small style={{ color: "#cbd5e1" }}>
-            Idle: {lastResult?.idle_time_ms ? `${(lastResult.idle_time_ms / 1000).toFixed(1)}s` : "0.0s"} • Baseline: {lastResult?.baseline_ms ? `${Math.round(lastResult.baseline_ms / 100) / 10}s` : "Accumulating"}
+            Idle: {lastResult?.idle_time_ms !== undefined ? `${(lastResult.idle_time_ms / 1000).toFixed(2)}s` : "0.00s"} • Baseline: {lastResult?.baseline_ms ? `${(lastResult.baseline_ms / 1000).toFixed(2)}s` : "Accumulating"}
           </small>
         </div>
       </div>

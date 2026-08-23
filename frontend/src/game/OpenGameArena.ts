@@ -304,15 +304,17 @@ export class OpenGameArena {
     this.state = "SUBMITTING";
     const latency = Math.max(100, Math.round(performance.now() - this.shownAt));
 
-    // Calculate Nuanced Biometrics
+    // Calculate Nuanced Biometrics (2 decimal places)
     const hesitation = this.firstInteractionTime > 0 ? Math.round(this.firstInteractionTime - this.shownAt) : latency;
     const dtSec = Math.max(0.1, latency / 1000);
-    const avgVelocity = Math.round((this.totalCursorDistancePx / dtSec) * 10) / 10;
+    const avgVelocity = Math.round((this.totalCursorDistancePx / dtSec) * 100) / 100;
+    const peakVelocity = Math.round(this.peakCursorVelocityPxS * 100) / 100;
     const directDist = (this.startCursorPos && this.lastCursorPos)
       ? Math.hypot(this.lastCursorPos.x - this.startCursorPos.x, this.lastCursorPos.y - this.startCursorPos.y)
       : 25;
     const jitterRatio = Math.round((this.totalCursorDistancePx / Math.max(15, directDist)) * 100) / 100;
-    const focusScore = Math.max(0, Math.min(100, Math.round(100 - (this.idleDurationMs / latency) * 45 - this.distractionEvents * 25 - (jitterRatio > 2.8 ? 15 : 0))));
+    const rawFocus = 100 - (this.idleDurationMs / latency) * 45 - this.distractionEvents * 25 - (jitterRatio > 2.8 ? 15 : 0);
+    const focusScore = Math.round(Math.max(0, Math.min(100, rawFocus)) * 100) / 100;
 
     // Tennis Serve Launch
     if (this.theme.id === "tennis") {
@@ -337,7 +339,7 @@ export class OpenGameArena {
         answer_given: answerVal,
         latency_to_submit_ms: latency,
         cursor_velocity_px_s: avgVelocity,
-        cursor_peak_velocity_px_s: Math.round(this.peakCursorVelocityPxS * 10) / 10,
+        cursor_peak_velocity_px_s: peakVelocity,
         jitter_ratio: jitterRatio,
         idle_time_ms: Math.round(this.idleDurationMs),
         hesitation_ms: hesitation,
