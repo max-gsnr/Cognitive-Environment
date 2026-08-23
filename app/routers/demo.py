@@ -162,26 +162,28 @@ def seed_history(
 # difficulty is deliberately untouched across both, because that is the control
 # that makes the comparison mean anything --- if challenge fit moved too, the
 # Release Impact view says so instead of taking credit for it.
-# wrong_every: one answer in N is wrong, so both versions sit at a comparable
-# success rate and Challenge Fit stays flat --- a version that suddenly answers
-# everything correctly reads as "the difficulty moved", which is exactly the
-# confound the view is built to expose.
+# wrong_every: one answer in N is wrong, so both versions sit near the 80% the
+# policy aims at and Challenge Fit stays flat. A version that suddenly answers
+# everything correctly reads as "the difficulty moved", which is the confound
+# this view exists to expose, so the seeded data must not fake it.
+# wrong_pace: how fast the wrong answers come, as a multiple of the child's own
+# pace. Under 1 they are guesses; at 1 they are mistakes.
 IMPACT_BLOCKS: list[dict[str, Any]] = [
     {
         "version": 1,
         "sittings": 3,
         "questions": 4,
         "focus": 0.41,
-        "pace": 0.35,
         "wrong_every": 4,
+        "wrong_pace": 0.25,
     },
     {
         "version": 2,
         "sittings": 3,
         "questions": 10,
         "focus": 0.83,
-        "pace": 1.0,
         "wrong_every": 5,
+        "wrong_pace": 1.0,
     },
 ]
 
@@ -222,8 +224,9 @@ def seed_release_impact(
     total_sittings = sum(int(block["sittings"]) for block in IMPACT_BLOCKS)
 
     for block in IMPACT_BLOCKS:
-        focus, pace = float(block["focus"]), float(block["pace"])
+        focus = float(block["focus"])
         wrong_every = int(block["wrong_every"])
+        wrong_pace = float(block["wrong_pace"])
         for _ in range(int(block["sittings"])):
             sitting_index += 1
             start = now - timedelta(hours=6 * (total_sittings - sitting_index + 1))
@@ -231,10 +234,13 @@ def seed_release_impact(
                 question = difficulty.next_question(vector, body.skill_id, rng)
                 correct_answer = question["correct_answer"]
                 # Both versions get some answers wrong; only the guessy one gets
-                # them wrong *fast*, which is what the guessing rate reads.
+                # them wrong *fast*, which is what the guessing rate reads. The
+                # slip is off by one so the replay counts it as evidence: an
+                # unclassifiable answer teaches Loop A nothing and would let the
+                # ability estimate drift away from the tier it was played at.
                 wrong = step % wrong_every == wrong_every - 1
-                answer = correct_answer + 2 if wrong else correct_answer
-                latency = int(HISTORY_LATENCY_MS * pace)
+                answer = correct_answer + 1 if wrong else correct_answer
+                latency = int(HISTORY_LATENCY_MS * (wrong_pace if wrong else 1.0))
                 session.add(
                     Attempt(
                         profile_id=body.profile_id,

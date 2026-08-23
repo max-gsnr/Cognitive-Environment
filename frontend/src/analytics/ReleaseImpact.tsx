@@ -2,13 +2,13 @@
  * The v1 → v2 view: did shipping a new build of the game actually help?
  *
  * This is the release-impact dashboard every product team already has, pointed
- * at a child's sessions instead of a checkout funnel: engagement per version, a
- * completion funnel, and the trend per sitting with the release marked on it.
+ * at a child's sessions instead of a checkout funnel: engagement per version and
+ * a completion funnel for the build that is live.
  *
  * The honesty is in three places, and they are the reason this survives a
  * question from the floor: difficulty is reported *alongside* engagement (if the
  * work got easier, that explains an engagement lift and the caveats say so), the
- * per-sitting trend is shown rather than only two averages, and the caveats come
+ * share of the data that is seeded is stated on the panel, and the caveats come
  * from the backend rather than being written here.
  */
 import { useEffect, useState } from "react";
@@ -191,29 +191,33 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
         </Figure>
       )}
 
+      {/* The funnel is about the build that is live, not about both builds
+          averaged: mixing them reports a drop-off rate no version ever had. */}
       <Figure
-        title="Where Sessions End"
+        title={`Where Sessions End on ${after.label}`}
         why={
-          "Of the sittings a child starts, how many get past the first few questions and how " +
-          "many reach the end. Attention, measured as behaviour rather than as a score."
+          "Of the sittings a child starts on the live build, how many get past the first " +
+          "few questions and how many reach the end. Attention, measured as behaviour " +
+          "rather than as a score."
         }
-        summary={funnelSummary(data)}
+        summary={funnelSummary(sittingsOf(data, after.version))}
       >
         <Funnel
           steps={[
             {
               label: "Sittings started",
-              value: data.timeline.length,
+              value: sittingsOf(data, after.version).length,
               hint: "a run of questions with no long break",
             },
             {
               label: "Reached 5 questions",
-              value: data.timeline.filter((point) => point.questions >= 5).length,
+              value: sittingsOf(data, after.version).filter((point) => point.questions >= 5)
+                .length,
               hint: "past the point where a bored child usually stops",
             },
             {
               label: "Finished the session",
-              value: data.timeline.filter((point) => point.completed).length,
+              value: sittingsOf(data, after.version).filter((point) => point.completed).length,
               hint: "played the full session length set at intake",
             },
           ]}
@@ -269,9 +273,16 @@ function headline(
   return `${Math.abs(practice).toFixed(1)} ${direction} questions per sitting, ${clean}.`;
 }
 
-function funnelSummary(data: ReleaseImpactData): string {
-  const started = data.timeline.length;
-  const finished = data.timeline.filter((point) => point.completed).length;
+function sittingsOf(
+  data: ReleaseImpactData,
+  version: number | null
+): ReleaseImpactData["timeline"] {
+  return data.timeline.filter((point) => point.version === version);
+}
+
+function funnelSummary(sittings: ReleaseImpactData["timeline"]): string {
+  const started = sittings.length;
+  const finished = sittings.filter((point) => point.completed).length;
   return `${started} sittings started, ${finished} finished (${pct(
     started ? finished / started : 0
   )}).`;

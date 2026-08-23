@@ -61,15 +61,15 @@ export function ProfilePage() {
 
 
 
-  const seedReleaseImpact = (skillId: string) =>
+  // One button for the whole demo story: two versions' worth of play, and the
+  // build history that produced them. Seeding half of it leaves the two panels
+  // disagreeing about how many versions exist.
+  const seedDemo = (skillId: string) =>
     api
       .post("/demo/seed-release-impact", { profile_id: profileId, skill_id: skillId })
-      .then(() => setImpactKey((key) => key + 1))
-      .catch((cause: Error) => setError(cause.message));
-
-  const seedEvolution = (skillId: string) =>
-    api
-      .post("/demo/seed-evolution", { profile_id: profileId, skill_id: skillId })
+      .then(() =>
+        api.post("/demo/seed-evolution", { profile_id: profileId, skill_id: skillId }),
+      )
       .then(() => {
         setImpactKey((key) => key + 1);
         load();
@@ -143,19 +143,14 @@ export function ProfilePage() {
               ))}
             </select>
           </label>
-          <button className="secondary" onClick={() => seedReleaseImpact(impactSkill)}>
-            Seed two versions of play (demo)
+          <button className="secondary" onClick={() => seedDemo(impactSkill)}>
+            Seed a demo history (v1 → v2 + build log)
           </button>
         </div>
         <ReleaseImpact key={`${impactSkill}:${impactKey}`} profileId={profileId} skillId={impactSkill} />
       </div>
 
       <div className="impact-section">
-        <div className="impact-controls">
-          <button className="secondary" onClick={() => seedEvolution(impactSkill)}>
-            Seed a version history (demo)
-          </button>
-        </div>
         <EvolutionLog profileId={profileId} skillId={impactSkill} refreshKey={impactKey} />
       </div>
 
