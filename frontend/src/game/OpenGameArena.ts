@@ -376,9 +376,37 @@ export class OpenGameArena {
 
   public async loadNextQuestion(): Promise<void> {
     try {
-      const q = await api.get<Question>(
+      let q = await api.get<Question>(
         `/profiles/${this.profileId}/skills/${this.skillId}/next-question`
       );
+      if (this.gameVersion === 1) {
+        const a = Math.floor(Math.random() * 6) + 3;
+        const b = Math.floor(Math.random() * 5) + 2;
+        q = {
+          operands: [a, b],
+          operator: "+",
+          correct_answer: a + b,
+          difficulty_vector_snapshot: { digits: 1, magnitude: "single", carries: false, borrows: false, zero_in_minuend: false },
+        };
+      } else if (this.gameVersion === 2) {
+        const a = Math.floor(Math.random() * 30) + 16;
+        const b = Math.floor(Math.random() * 20) + 15;
+        q = {
+          operands: [a, b],
+          operator: "+",
+          correct_answer: a + b,
+          difficulty_vector_snapshot: { digits: 2, magnitude: "mid_double", carries: true, borrows: false, zero_in_minuend: false },
+        };
+      } else if (this.gameVersion === 3) {
+        const a = Math.floor(Math.random() * 200) + 120;
+        const b = Math.floor(Math.random() * 150) + 110;
+        q = {
+          operands: [a, b],
+          operator: "+",
+          correct_answer: a + b,
+          difficulty_vector_snapshot: { digits: 3, magnitude: "triple", carries: true, borrows: false, zero_in_minuend: false },
+        };
+      }
       this.currentQuestion = q;
       this.state = "PLAYING";
       this.shownAt = performance.now();

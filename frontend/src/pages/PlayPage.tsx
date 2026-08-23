@@ -81,6 +81,14 @@ export function PlayPage() {
             >
               v2 (Devin Iterated 🚀)
             </button>
+            <button
+              type="button"
+              className={`version-tab-btn ${activeVersion === 3 ? "is-active" : ""}`}
+              onClick={() => setActiveVersion(3)}
+              title="Play Devin candidate version 3"
+            >
+              v3 (Candidate ⚡)
+            </button>
           </div>
 
           <button
@@ -115,9 +123,7 @@ export function PlayPage() {
             setAnswered(a);
           }}
           onLevelComplete={() => {
-            if (activeVersion === 1) {
-              setTimeout(() => setShowEvolutionModal(true), 1200);
-            }
+            setTimeout(() => setShowEvolutionModal(true), 1000);
           }}
         />
 
