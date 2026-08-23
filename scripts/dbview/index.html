@@ -239,7 +239,8 @@
         }
         const focus = row.focus_score;
         const focusClass = focus === null ? "dim" : focus >= 80 ? "good" : focus >= 60 ? "warn" : "poor";
-        const jitterClass = row.jitter_ratio > 2.5 ? "poor" : "good";
+        const jitterClass =
+          row.jitter_ratio === null ? "dim" : row.jitter_ratio > 2.5 ? "poor" : "good";
         const cards = [
           {
             label: "focus_score",
