@@ -1,0 +1,109 @@
+{
+  "name": "working_memory_bottleneck",
+  "why": "Right, but repeatedly at twice their usual pace: the arithmetic is known and the holding of it is what costs.",
+  "baseline_ms": 4000.0,
+  "events": [
+    {
+      "event": "level_started",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "edit_event",
+      "properties": {
+        "type": "after_pause_correction"
+      }
+    },
+    {
+      "event": "edit_event",
+      "properties": {
+        "type": "after_pause_correction"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 11000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 11000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 11000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 11000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 11000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 4200,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 4200,
+        "correct": true,
+        "error_class": "correct"
+      }
+    }
+  ],
+  "expected_signal": "working_memory_bottleneck",
+  "expected_change_tier": "structural"
+}

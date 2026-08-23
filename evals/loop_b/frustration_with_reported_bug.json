@@ -1,0 +1,82 @@
+{
+  "name": "frustration_with_reported_bug",
+  "why": "A reported problem and an abandoned level outrank every other reading: a bug makes the rest a measurement of the bug.",
+  "baseline_ms": 4000.0,
+  "reported_problems": 1,
+  "events": [
+    {
+      "event": "level_started",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "rage_click",
+      "properties": {}
+    },
+    {
+      "event": "rage_click",
+      "properties": {}
+    },
+    {
+      "event": "rage_click",
+      "properties": {}
+    },
+    {
+      "event": "level_abandoned",
+      "properties": {}
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 1200,
+        "correct": false,
+        "error_class": "unclassified"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 1200,
+        "correct": false,
+        "error_class": "unclassified"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 1200,
+        "correct": false,
+        "error_class": "unclassified"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 1200,
+        "correct": false,
+        "error_class": "unclassified"
+      }
+    }
+  ],
+  "expected_signal": "frustration_or_bug",
+  "expected_change_tier": "presentation"
+}

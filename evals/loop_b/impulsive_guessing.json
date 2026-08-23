@@ -1,0 +1,121 @@
+{
+  "name": "impulsive_guessing",
+  "why": "Wrong and far faster than the child's own pace, repeatedly.",
+  "baseline_ms": 4000.0,
+  "events": [
+    {
+      "event": "level_started",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 900,
+        "correct": false,
+        "error_class": "counting_slip"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 900,
+        "correct": false,
+        "error_class": "counting_slip"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 900,
+        "correct": false,
+        "error_class": "counting_slip"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 900,
+        "correct": false,
+        "error_class": "counting_slip"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 900,
+        "correct": false,
+        "error_class": "counting_slip"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3900,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3900,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 3900,
+        "correct": true,
+        "error_class": "correct"
+      }
+    }
+  ],
+  "expected_signal": "impulsive_guessing",
+  "expected_change_tier": "content"
+}

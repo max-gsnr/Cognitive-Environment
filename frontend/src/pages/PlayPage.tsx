@@ -61,6 +61,7 @@ export function PlayPage() {
       capture("answer_submitted", {
         profile_id: profileId,
         skill_id: skillId,
+        attempt_id: result.attempt_id,
         is_correct: result.is_correct,
         error_class: result.error_class,
         latency_to_submit_ms: latency,

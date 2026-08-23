@@ -76,10 +76,22 @@ Loop B hands Devin the profile, the error breakdown, the teacher's notes and a s
 PostHog key, and only marks a generated game live once all four gates — schema,
 assertions, headless playthrough, render/accessibility — report a pass.
 
+Devin is never the only witness to its own work. Before a version can go live the backend
+re-checks the artifact itself (`app/gates.py`): that it asks *us* for questions instead of
+inventing them, that it emits the telemetry Loop B reads, and — when Playwright is present
+— that a real Chromium playthrough actually reaches those endpoints. And Devin is not asked
+to do arithmetic on a play session: `app/telemetry_signals.py` reduces the raw PostHog
+events to signals (`impulsive_guessing`, `working_memory_bottleneck`, `healthy_struggle`, …)
+deterministically, and the iteration prompt receives those numbers as ground truth. Each
+game row keeps the prompt fingerprint, the agent and the signals it was rewritten from.
+
 | Piece | Where |
 | --- | --- |
 | Deterministic core | `app/difficulty.py`, `app/error_taxonomy.py`, `app/baseline.py`, `app/ability.py`, `app/adaptation.py` |
+| Telemetry → signals | `app/telemetry_signals.py`, `app/posthog_client.py` |
+| Independent gate re-check | `app/gates.py` |
 | Policy comparison harness | `scripts/loop_a_sim.py` |
+| Loop B diagnosis eval set | `evals/loop_b/`, `scripts/loop_b_eval.py` |
 | API | `app/routers/` (intake, profiles, attempts, games, audit, demo) |
 | Prompts, verbatim | `app/prompts.py` |
 | Teacher + child UI | `frontend/` (React, Vite) |
@@ -99,7 +111,8 @@ log — runs without any external key.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-.venv/bin/pytest        # deterministic core + API behaviour
+.venv/bin/pytest                        # deterministic core + API behaviour
+.venv/bin/python scripts/loop_b_eval.py # does Loop B read a session correctly?
 .venv/bin/ruff check .
 cd frontend && npm run build
 ```
