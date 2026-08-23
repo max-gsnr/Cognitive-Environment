@@ -121,8 +121,8 @@ def _evolve(args: argparse.Namespace) -> int:
     client = DevinClient()
     if not client.configured:
         sys.stderr.write(
-            "DEVIN_API_KEY and DEVIN_ORG_ID are required: the mutation operator is a"
-            " real Devin session and is never mocked.\n"
+            "DEVIN_API_KEY is required (plus DEVIN_ORG_ID to use the v3 endpoints):"
+            " the mutation operator is a real Devin session and is never mocked.\n"
         )
         return 3
 

@@ -1,11 +1,21 @@
 """Devin API client — the mutation operator is an agent session, not a template.
 
-Endpoints are the current v3 organization-scoped ones (the v1 paths in earlier
-drafts of this project were wrong):
+Two API generations are supported, because which one a key can use depends on
+the key. The organization-scoped v3 endpoints
 
     POST /v3/organizations/{org_id}/sessions
     GET  /v3/organizations/{org_id}/sessions/{devin_id}
     POST /v3/organizations/{org_id}/sessions/{devin_id}/messages
+
+are tried first; a user-scoped key (``apk_user_…``) gets 403 Forbidden on them
+while working fine on v1, so the client then falls back to
+
+    POST /v1/sessions
+    GET  /v1/session/{devin_id}
+    POST /v1/session/{devin_id}/message
+
+This is a real fallback, not a mock: both paths create actual sessions. Set
+``DEVIN_API_VERSION=v1`` or ``v3`` to pin one.
 
 Two details do real work here:
 
@@ -31,7 +41,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 DEFAULT_BASE = "https://api.devin.ai"
-TERMINAL = {"exit", "error", "suspended"}
+SESSION_URL = "https://app.devin.ai/sessions"
+#: v3 statuses plus v1's ``status_enum`` values that mean "not going to progress".
+TERMINAL = {"exit", "error", "suspended", "finished", "expired", "blocked"}
 
 #: What each mutation session must hand back. Draft-7, self-contained.
 MUTATION_SCHEMA: dict[str, Any] = {
@@ -81,13 +93,19 @@ class Session:
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> Session:
+        session_id = payload.get("session_id", "")
+        # v1 reports `status_enum` and a single `pull_request`; v3 reports
+        # `status` and a list. Normalise both into one shape.
+        single_pr = payload.get("pull_request")
         return cls(
-            session_id=payload.get("session_id", ""),
-            url=payload.get("url", ""),
-            status=payload.get("status", "new"),
+            session_id=session_id,
+            url=payload.get("url") or f"{SESSION_URL}/{session_id.removeprefix('devin-')}",
+            status=payload.get("status_enum") or payload.get("status") or "new",
             acus_consumed=float(payload.get("acus_consumed") or 0.0),
             structured_output=payload.get("structured_output"),
-            pull_requests=list(payload.get("pull_requests") or []),
+            pull_requests=list(
+                payload.get("pull_requests") or ([single_pr] if single_pr else [])
+            ),
         )
 
 
@@ -100,6 +118,7 @@ class DevinClient:
         api_key: str | None = None,
         org_id: str | None = None,
         base_url: str | None = None,
+        api_version: str | None = None,
         transport: Any | None = None,
     ) -> None:
         # `is None` rather than falsy: an explicit empty string means "no
@@ -110,19 +129,28 @@ class DevinClient:
             "/"
         )
         self._transport = transport
+        self.api_version = (
+            api_version or os.environ.get("DEVIN_API_VERSION") or "auto"
+        ).lower()
+        # v3 paths are org-scoped, so without an org id there is nothing to try:
+        # start on v1 rather than making a request that cannot succeed.
+        self._version = (
+            "v1" if self.api_version == "v1" or (self.api_version == "auto" and not self.org_id)
+            else "v3"
+        )
 
     @property
     def configured(self) -> bool:
-        return bool(self.api_key and self.org_id)
+        # v1 is keyed on the API key alone; only v3's paths need the org id.
+        return bool(self.api_key) and (self._version == "v1" or bool(self.org_id))
 
     def _require(self) -> None:
         if self._transport is not None:
             return
-        missing = [
-            name
-            for name, value in (("DEVIN_API_KEY", self.api_key), ("DEVIN_ORG_ID", self.org_id))
-            if not value
-        ]
+        needed = [("DEVIN_API_KEY", self.api_key)]
+        if self._version == "v3":
+            needed.append(("DEVIN_ORG_ID", self.org_id))
+        missing = [name for name, value in needed if not value]
         if missing:
             raise MissingCredentials(
                 f"set {' and '.join(missing)} to run agent mutations"
@@ -144,6 +172,57 @@ class DevinClient:
         except urllib.error.HTTPError as error:  # surface the API's own message
             detail = error.read().decode()[:400]
             raise DevinError(f"{method} {path} -> {error.code}: {detail}") from error
+
+    def _path(self, endpoint: str, session_id: str = "") -> str:
+        if self._version == "v1":
+            return {
+                "create": "/v1/sessions",
+                "get": f"/v1/session/{session_id}",
+                "message": f"/v1/session/{session_id}/message",
+            }[endpoint]
+        root = f"/v3/organizations/{self.org_id}/sessions"
+        return {
+            "create": root,
+            "get": f"{root}/{session_id}",
+            "message": f"{root}/{session_id}/messages",
+        }[endpoint]
+
+    def _call(
+        self,
+        endpoint: str,
+        method: str,
+        *,
+        session_id: str = "",
+        body: dict[str, Any] | None = None,
+    ) -> Any:
+        try:
+            return self._request(method, self._path(endpoint, session_id), body)
+        except DevinError as error:
+            downgradable = (
+                self.api_version == "auto"
+                and self._version == "v3"
+                and (" -> 403:" in str(error) or " -> 404:" in str(error))
+            )
+            if not downgradable:
+                raise
+            # A user-scoped key cannot reach the org endpoints; v1 is not a
+            # lesser mode here, it creates the same sessions.
+            self._version = "v1"
+            body = self._v1_body(body) if endpoint == "create" and body else body
+            return self._request(method, self._path(endpoint, session_id), body)
+
+    @staticmethod
+    def _v1_body(body: dict[str, Any]) -> dict[str, Any]:
+        """v1 create rejects unknown fields, and has no `repos`."""
+        allowed = {
+            "prompt",
+            "title",
+            "tags",
+            "max_acu_limit",
+            "idempotent",
+            "structured_output_schema",
+        }
+        return {key: value for key, value in body.items() if key in allowed}
 
     # --- sessions -------------------------------------------------------
 
@@ -172,23 +251,16 @@ class DevinClient:
             body["max_acu_limit"] = max_acu_limit
         if idempotent:
             body["idempotent"] = True
-        payload = self._request(
-            "POST", f"/v3/organizations/{self.org_id}/sessions", body
-        )
+        if self._version == "v1":
+            body = self._v1_body(body)
+        payload = self._call("create", "POST", body=body)
         return Session.from_payload(payload)
 
     def get_session(self, session_id: str) -> Session:
-        payload = self._request(
-            "GET", f"/v3/organizations/{self.org_id}/sessions/{session_id}"
-        )
-        return Session.from_payload(payload)
+        return Session.from_payload(self._call("get", "GET", session_id=session_id))
 
     def send_message(self, session_id: str, message: str) -> None:
-        self._request(
-            "POST",
-            f"/v3/organizations/{self.org_id}/sessions/{session_id}/messages",
-            {"message": message},
-        )
+        self._call("message", "POST", session_id=session_id, body={"message": message})
 
     def wait(
         self,

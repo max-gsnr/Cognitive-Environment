@@ -39,7 +39,8 @@ def shingles(source: str) -> frozenset[tuple[str, ...]]:
     if len(tokens) <= SHINGLE:
         return frozenset({tuple(tokens)})
     return frozenset(
-        tuple(tokens[index : index + SHINGLE]) for index in range(len(tokens) - SHINGLE)
+        tuple(tokens[index : index + SHINGLE])
+        for index in range(len(tokens) - SHINGLE + 1)
     )
 
 

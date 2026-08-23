@@ -117,6 +117,61 @@ def test_wait_times_out_rather_than_hanging_a_generation() -> None:
         )
 
 
+def test_forbidden_v3_downgrades_to_v1_rather_than_failing() -> None:
+    """A user-scoped key is 403 on the org endpoints but works on v1."""
+
+    calls: list[str] = []
+
+    def transport(method: str, url: str, body: dict | None) -> dict:
+        calls.append(url)
+        if "/v3/" in url:
+            raise DevinError("POST /v3/... -> 403: Forbidden")
+        assert "repos" not in (body or {})  # v1 rejects unknown fields
+        return {"session_id": "devin-abc", "url": "https://app.devin.ai/sessions/abc"}
+
+    devin = DevinClient(api_key="k", org_id="org-1", transport=transport)
+    session = devin.create_session("mutate", repos=["owner/repo"])
+    assert session.session_id == "devin-abc"
+    assert [url.split(".ai")[-1] for url in calls] == [
+        "/v3/organizations/org-1/sessions",
+        "/v1/sessions",
+    ]
+
+    # The downgrade sticks, so the rest of the generation does not retry v3.
+    devin.get_session("devin-abc")
+    assert calls[-1].endswith("/v1/session/devin-abc")
+
+
+def test_a_key_without_an_org_starts_on_v1() -> None:
+    transport = Recorder(session_payload())
+    devin = DevinClient(api_key="k", org_id="", transport=transport)
+    assert devin.configured
+    devin.create_session("mutate")
+    assert transport.calls[0][1].endswith("/v1/sessions")
+
+
+def test_v1_session_shape_is_normalised() -> None:
+    session = Session.from_payload(
+        {
+            "session_id": "devin-abc",
+            "status_enum": "finished",
+            "pull_request": {"url": "https://github.com/o/r/pull/1"},
+        }
+    )
+    assert session.finished
+    assert session.url == "https://app.devin.ai/sessions/abc"
+    assert session.pull_requests == [{"url": "https://github.com/o/r/pull/1"}]
+
+
+def test_pinning_the_version_disables_the_fallback() -> None:
+    def transport(method: str, url: str, body: dict | None) -> dict:
+        raise DevinError("POST /v3/... -> 403: Forbidden")
+
+    devin = DevinClient(api_key="k", org_id="org-1", api_version="v3", transport=transport)
+    with pytest.raises(DevinError, match="403"):
+        devin.create_session("mutate")
+
+
 def test_missing_credentials_is_an_error_not_a_mock() -> None:
     devin = DevinClient(api_key="", org_id="")
     assert not devin.configured

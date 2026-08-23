@@ -152,8 +152,15 @@ class DevinMutator:
         )
 
     def fetch(self, branch: str) -> str:
-        _run(["git", "fetch", "--quiet", "origin", branch], self.repo_dir)
-        return _run(["git", "show", f"FETCH_HEAD:{self.game_path}"], self.repo_dir)
+        # Into a private ref, never FETCH_HEAD: a generation fetches several
+        # branches concurrently and FETCH_HEAD is one shared file, so relying on
+        # it would score a candidate against another session's source.
+        ref = f"refs/orbit/{uuid.uuid4().hex[:8]}"
+        _run(
+            ["git", "fetch", "--quiet", "--force", "origin", f"{branch}:{ref}"],
+            self.repo_dir,
+        )
+        return _run(["git", "show", f"{ref}:{self.game_path}"], self.repo_dir)
 
 
 @dataclass
