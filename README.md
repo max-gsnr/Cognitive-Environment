@@ -65,4 +65,18 @@ from that child's own telemetry by fanning out parallel Devin sessions. Agent-wr
 in a learning tool has to be auditable — a teacher must be able to ask "why does Leo's game
 pause for 2.5 seconds after a wrong answer?" and get back the session, the prompt, and the
 telemetry that motivated it. Entire is that answer, and this integration is what makes it
-reach Devin. Orbit itself is not in this repository yet.
+reach Devin.
+
+## Orbit
+
+Orbit lives in `orbit/` and `games/orbit/`: a playable arithmetic game, a learner model
+fitted from its telemetry, and an evolutionary loop where **real Devin sessions rewrite the
+game's source** and a headless browser plays each candidate to score it.
+
+```bash
+scripts/setup-orbit.sh
+.venv/bin/python -m orbit.cli evaluate games/orbit/index.html --seeds 1,2
+```
+
+`docs/ORBIT.md` explains the loop, the objective function and the safety gates, and how to
+run an evolution against a deployed candidate URL (cloud) or a local file (fallback).
