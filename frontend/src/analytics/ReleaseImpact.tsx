@@ -20,7 +20,6 @@ import {
   Figure,
   Funnel,
   Stat,
-  TrendChart,
   pct,
 } from "./charts";
 
@@ -29,9 +28,6 @@ type Props = { profileId: string; skillId: string };
 export function ReleaseImpact({ profileId, skillId }: Props) {
   const [data, setData] = useState<ReleaseImpactData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [metric, setMetric] = useState<"challenge_fit" | "success_rate" | "questions">(
-    "questions"
-  );
 
   useEffect(() => {
     api
@@ -59,18 +55,6 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
   const before = data.versions[0];
   const after = data.versions[data.versions.length - 1];
   const single = data.versions.length < 2;
-  const trend = data.timeline.map((point) => ({
-    at: point.at,
-    group: point.version === null ? "baseline" : `v${point.version}`,
-    value:
-      metric === "questions"
-        ? Math.min(1, point.questions / Math.max(1, longest(data)))
-        : point[metric],
-    label:
-      `${new Date(point.at).toLocaleString()} — ${point.questions} questions, ` +
-      `challenge fit ${pct(point.challenge_fit)}, success ${pct(point.success_rate)}` +
-      `${point.completed ? ", finished the session" : ", left early"}`,
-  }));
 
   const rows: DeltaRow[] = [
     {
@@ -225,43 +209,7 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
         />
       </Figure>
 
-      <Figure
-        title="Trend by Sitting"
-        why={
-          "Every sitting in order, with a dashed line where the new version shipped. A " +
-          "before/after average can hide a trend that was already going the right way; this " +
-          "cannot."
-        }
-        summary={trend.map((point) => point.label).join(" | ")}
-        legend={
-          <div className="metric-switch" role="group" aria-label="Metric to plot">
-            {(
-              [
-                ["questions", "Questions per sitting"],
-                ["challenge_fit", "Challenge fit"],
-                ["success_rate", "Success rate"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className={`secondary${metric === key ? " is-active" : ""}`}
-                aria-pressed={metric === key}
-                onClick={() => setMetric(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        }
-      >
-        <TrendChart
-          points={trend}
-          band={
-            metric === "challenge_fit" ? { low: data.band_low, high: data.band_high } : undefined
-          }
-        />
-      </Figure>
+
 
       <div className="caveats">
         <h3>Read this with the caveats</h3>
@@ -294,10 +242,6 @@ export function ReleaseImpact({ profileId, skillId }: Props) {
       </div>
     </div>
   );
-}
-
-function longest(data: ReleaseImpactData): number {
-  return Math.max(...data.timeline.map((point) => point.questions), 1);
 }
 
 function headline(
