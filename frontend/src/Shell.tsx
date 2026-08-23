@@ -30,6 +30,9 @@ export function Shell() {
               <NavLink to="/audit" className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}>
                 📜 Audit Log
               </NavLink>
+              <a href="http://localhost:8899" target="_blank" rel="noreferrer" className="nav-btn" title="Open live SQLite database inspector">
+                📊 Live DB (8899)
+              </a>
             </nav>
           </header>
         </>
