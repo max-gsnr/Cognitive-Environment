@@ -10,7 +10,13 @@ from sqlalchemy.orm import Session
 
 from app import audit, difficulty, openai_client, prompts
 from app.db import get_session
-from app.models import ChildProfile, DevelopmentNote, IntakeSession, SubjectMastery
+from app.models import (
+    ChildProfile,
+    DevelopmentNote,
+    Game,
+    IntakeSession,
+    SubjectMastery,
+)
 from app.schemas import (
     IntakeAnswerRequest,
     IntakeFinalizeRequest,
