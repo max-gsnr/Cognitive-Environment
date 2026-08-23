@@ -92,6 +92,12 @@ export type AttemptResult = {
   baseline_ms: number | null;
   movement: string;
   repeat_tier: boolean;
+  focus_score?: number;
+  jitter_ratio?: number;
+  idle_time_ms?: number;
+  cursor_velocity_px_s?: number;
+  hesitation_ms?: number;
+  distraction_events?: number;
 };
 
 export type GameState = {

@@ -64,6 +64,14 @@ class AttemptRequest(BaseModel):
     operator: str
     answer_given: int
     latency_to_submit_ms: int = Field(ge=0)
+    # Nuanced biometric & behavioral telemetry
+    cursor_velocity_px_s: float | None = None
+    cursor_peak_velocity_px_s: float | None = None
+    jitter_ratio: float | None = None
+    idle_time_ms: int | None = None
+    hesitation_ms: int | None = None
+    distraction_events: int | None = None
+    focus_score: float | None = None
 
 
 class AttemptResponse(BaseModel):
@@ -76,10 +84,12 @@ class AttemptResponse(BaseModel):
     baseline_ms: float | None = None
     movement: str
     repeat_tier: bool = False
-    # Loop A's working estimate, and the success rate it is aiming the next
-    # question at. Exposed so a teacher can see why difficulty moved.
     ability_rating: float | None = None
     expected_success: float | None = None
+    # Biometric insights
+    focus_score: float | None = None
+    jitter_ratio: float | None = None
+    idle_time_ms: int | None = None
 
 
 class GenerateGameRequest(BaseModel):

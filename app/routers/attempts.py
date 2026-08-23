@@ -71,6 +71,11 @@ def submit_attempt(
         difficulty_vector_snapshot=vector,
         tier_key=tier,
         latency_to_submit_ms=body.latency_to_submit_ms,
+        cursor_velocity_px_s=body.cursor_velocity_px_s,
+        jitter_ratio=body.jitter_ratio,
+        idle_time_ms=body.idle_time_ms,
+        distraction_events=body.distraction_events,
+        focus_score=body.focus_score,
     )
     session.add(attempt)
     mastery.difficulty_vector = decision.vector
@@ -86,6 +91,9 @@ def submit_attempt(
         repeat_tier=movement.repeat_tier,
         ability_rating=round(decision.rating, 1),
         expected_success=round(decision.expected_success, 3),
+        focus_score=body.focus_score,
+        jitter_ratio=body.jitter_ratio,
+        idle_time_ms=body.idle_time_ms,
     )
 
 

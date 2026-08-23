@@ -174,6 +174,16 @@ export class OpenGameArena {
     active: false,
   };
 
+  // Biometric & Behavioral Nuance Tracking
+  private startCursorPos: { x: number; y: number } | null = null;
+  private lastCursorPos: { x: number; y: number } | null = null;
+  private lastCursorMoveTime: number = 0;
+  private totalCursorDistancePx: number = 0;
+  private peakCursorVelocityPxS: number = 0;
+  private idleDurationMs: number = 0;
+  private firstInteractionTime: number = 0;
+  private distractionEvents: number = 0;
+
   // Controls
   private targetX: number | null = null;
   private targetY: number | null = null;
@@ -264,6 +274,16 @@ export class OpenGameArena {
       this.tennisBall.active = false;
       this.opponent.diveOffset = 0;
 
+      // Reset biometric & behavioral accumulation for this question
+      this.startCursorPos = null;
+      this.lastCursorPos = null;
+      this.lastCursorMoveTime = performance.now();
+      this.totalCursorDistancePx = 0;
+      this.peakCursorVelocityPxS = 0;
+      this.idleDurationMs = 0;
+      this.firstInteractionTime = 0;
+      this.distractionEvents = 0;
+
       capture("problem_shown", {
         game_id: `orbit-${this.theme.id}`,
         profile_id: this.profileId,
@@ -284,13 +304,22 @@ export class OpenGameArena {
     this.state = "SUBMITTING";
     const latency = Math.max(100, Math.round(performance.now() - this.shownAt));
 
+    // Calculate Nuanced Biometrics
+    const hesitation = this.firstInteractionTime > 0 ? Math.round(this.firstInteractionTime - this.shownAt) : latency;
+    const dtSec = Math.max(0.1, latency / 1000);
+    const avgVelocity = Math.round((this.totalCursorDistancePx / dtSec) * 10) / 10;
+    const directDist = (this.startCursorPos && this.lastCursorPos)
+      ? Math.hypot(this.lastCursorPos.x - this.startCursorPos.x, this.lastCursorPos.y - this.startCursorPos.y)
+      : 25;
+    const jitterRatio = Math.round((this.totalCursorDistancePx / Math.max(15, directDist)) * 100) / 100;
+    const focusScore = Math.max(0, Math.min(100, Math.round(100 - (this.idleDurationMs / latency) * 45 - this.distractionEvents * 25 - (jitterRatio > 2.8 ? 15 : 0))));
+
     // Tennis Serve Launch
     if (this.theme.id === "tennis") {
       this.player.swingPhase = 1.0;
       this.tennisBall.active = true;
       this.tennisBall.x = this.player.x + 10;
       this.tennisBall.y = this.player.y - 15;
-      // Serve trajectory towards opponent's backhand corner
       const targetX = this.opponent.x > 400 ? 260 : 540;
       this.tennisBall.vx = (targetX - this.tennisBall.x) / 22;
       this.tennisBall.vy = (110 - this.tennisBall.y) / 22;
@@ -307,7 +336,22 @@ export class OpenGameArena {
         operator: this.currentQuestion.operator,
         answer_given: answerVal,
         latency_to_submit_ms: latency,
+        cursor_velocity_px_s: avgVelocity,
+        cursor_peak_velocity_px_s: Math.round(this.peakCursorVelocityPxS * 10) / 10,
+        jitter_ratio: jitterRatio,
+        idle_time_ms: Math.round(this.idleDurationMs),
+        hesitation_ms: hesitation,
+        distraction_events: this.distractionEvents,
+        focus_score: focusScore,
       });
+
+      // Augment result with local biometric nuance for real-time dashboard
+      result.focus_score = focusScore;
+      result.jitter_ratio = jitterRatio;
+      result.idle_time_ms = Math.round(this.idleDurationMs);
+      result.cursor_velocity_px_s = avgVelocity;
+      result.hesitation_ms = hesitation;
+      result.distraction_events = this.distractionEvents;
 
       capture("answer_submitted", {
         game_id: `orbit-${this.theme.id}`,
@@ -317,6 +361,11 @@ export class OpenGameArena {
         correct: result.is_correct,
         time_to_solve_ms: latency,
         error_class: result.error_class || "unknown",
+        cursor_velocity_px_s: avgVelocity,
+        jitter_ratio: jitterRatio,
+        focus_score: focusScore,
+        idle_time_ms: this.idleDurationMs,
+        distraction_events: this.distractionEvents,
       });
 
       this.callbacks.onAttemptResult?.(result);
@@ -951,12 +1000,62 @@ export class OpenGameArena {
   }
 
   private bindEvents(): void {
+    window.addEventListener("blur", () => {
+      this.distractionEvents += 1;
+      capture("window_blurred", { profile_id: this.profileId, skill_id: this.skillId });
+    });
+
+    window.addEventListener("keydown", () => {
+      if (!this.firstInteractionTime) {
+        this.firstInteractionTime = performance.now();
+      }
+    });
+
+    this.canvas.addEventListener("pointermove", (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.canvas.width / rect.width;
+      const scaleY = this.canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      const now = performance.now();
+
+      if (!this.firstInteractionTime) {
+        this.firstInteractionTime = now;
+      }
+
+      if (!this.startCursorPos) {
+        this.startCursorPos = { x, y };
+      }
+
+      if (this.lastCursorPos && this.lastCursorMoveTime > 0) {
+        const dt = Math.max(1, now - this.lastCursorMoveTime);
+        const dist = Math.hypot(x - this.lastCursorPos.x, y - this.lastCursorPos.y);
+
+        if (dt > 1200) {
+          this.idleDurationMs += dt;
+        }
+
+        this.totalCursorDistancePx += dist;
+        const instVelocity = (dist / dt) * 1000;
+        if (instVelocity > this.peakCursorVelocityPxS) {
+          this.peakCursorVelocityPxS = instVelocity;
+        }
+      }
+
+      this.lastCursorPos = { x, y };
+      this.lastCursorMoveTime = now;
+    });
+
     this.canvas.addEventListener("pointerdown", (e) => {
       const rect = this.canvas.getBoundingClientRect();
       const scaleX = this.canvas.width / rect.width;
       const scaleY = this.canvas.height / rect.height;
       this.targetX = (e.clientX - rect.left) * scaleX;
       this.targetY = (e.clientY - rect.top) * scaleY;
+
+      if (!this.firstInteractionTime) {
+        this.firstInteractionTime = performance.now();
+      }
     });
 
     window.addEventListener("resize", () => this.resizeCanvas());
