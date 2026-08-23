@@ -49,7 +49,10 @@ export function RosterPage() {
                 <span className="pill">{profile.session_length} questions/session</span>
               </div>
               <p className="muted" style={{ margin: "10px 0 14px" }}>
-                <strong>Interests:</strong> {profile.interests.join(", ")}
+                <strong>Interests:</strong>{" "}
+                {Array.isArray(profile.interests)
+                  ? profile.interests.join(", ")
+                  : (profile.interests || "general games")}
               </p>
               <div className="roster-card-actions">
                 <Link to={`/profiles/${profile.id}`}>

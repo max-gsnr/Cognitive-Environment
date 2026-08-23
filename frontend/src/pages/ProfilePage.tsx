@@ -68,11 +68,15 @@ export function ProfilePage() {
   if (!detail) return <p className="muted">Loading…</p>;
   const { profile } = detail;
 
+  const interestsString = Array.isArray(profile.interests)
+    ? profile.interests.join(", ")
+    : (profile.interests || "various games");
+
   return (
     <>
       <h1>{profile.name}</h1>
       <p className="muted">
-        Age {profile.age} · likes {profile.interests.join(", ")}
+        Age {profile.age} · likes {interestsString}
       </p>
 
       <div className="card">
