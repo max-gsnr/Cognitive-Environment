@@ -482,3 +482,60 @@ def test_a_missing_gate_is_a_failure():
         )
         is True
     )
+
+
+def test_the_session_monitor_reads_the_attempt_log(client, profile):
+    seed_tier_history(profile, "addition", count=6)
+    body = client.get(
+        f"/profiles/{profile}/skills/addition/session-metrics?window=20"
+    ).json()
+    assert body["questions"] == 6
+    assert body["success_rate"] == 1.0
+    assert body["band_low"] == 0.75 and body["band_high"] == 0.85
+    assert len(body["points"]) == 6
+    assert body["points"][0]["problem"] == "40 + 30"
+    assert body["session_length"] == 10
+
+
+def test_release_impact_reports_the_version_that_produced_each_number(
+    client, profile
+):
+    """The comparison is only defensible if each side names its own build."""
+    client.post("/demo/seed-release-impact", json={
+        "profile_id": profile,
+        "skill_id": "subtraction",
+    })
+    body = client.get(
+        f"/profiles/{profile}/skills/subtraction/release-impact"
+    ).json()
+    assert [v["label"] for v in body["versions"]] == ["v1", "v2"]
+    assert body["versions"][1]["questions_per_session"] > (
+        body["versions"][0]["questions_per_session"]
+    )
+    # A seeded demo has to admit it is one.
+    assert body["synthetic_share"] == 1.0
+    assert body["caveats"]
+
+
+def test_an_attempt_records_which_build_of_the_game_posed_it(client, profile):
+    question = client.get(
+        f"/profiles/{profile}/skills/addition/next-question"
+    ).json()
+    a, b = question["operands"]
+    client.post("/attempts", json={
+        "profile_id": profile,
+        "skill_id": "addition",
+        "operands": [a, b],
+        "operator": "+",
+        "answer_given": a + b,
+        "latency_to_submit_ms": 4000,
+        "game_id": "game-under-test",
+        "game_version": 3,
+    })
+    with SessionLocal() as session:
+        stored = (
+            session.query(Attempt)
+            .filter(Attempt.profile_id == profile, Attempt.game_version == 3)
+            .one()
+        )
+        assert stored.game_id == "game-under-test"

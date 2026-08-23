@@ -85,6 +85,8 @@ def submit_attempt(
         idle_time_ms=body.idle_time_ms,
         distraction_events=body.distraction_events,
         focus_score=focus,
+        game_id=body.game_id,
+        game_version=body.game_version,
     )
     session.add(attempt)
     mastery.difficulty_vector = decision.vector
