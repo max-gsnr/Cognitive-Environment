@@ -179,16 +179,93 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
     return result as unknown as T;
   }
 
-  // 5. GET /audit-log
+  // 5. POST /intake/start
+  if (p === "/intake/start") {
+    const body = init?.body ? JSON.parse(init.body as string) : {};
+    const childName = body.name || "the child";
+    return {
+      intake_id: `intake-${Date.now()}`,
+      question: `How does ${childName} typically react when encountering a difficult arithmetic mistake?`,
+      input_type: "choice",
+      choices: [
+        "Shuts down or gets anxious quickly (Needs high leniency & gentle feedback)",
+        "Stays calm and tries again if given visual cues",
+        "Gets restless or impulsive, guessing rapidly to move on",
+      ],
+      complete: false,
+    } as unknown as T;
+  }
+
+  // 6. POST /intake/:id/answer
+  if (p.startsWith("/intake/") && p.endsWith("/answer")) {
+    const questions = [
+      {
+        question: "When working on focused screen tasks, how does physical movement or fidgeting affect their concentration?",
+        choices: [
+          "Fidgeting helps them self-regulate and stay focused (Restlessness = Focus)",
+          "Movement usually signals distraction or task avoidance",
+          "Varies depending on tiredness and time of day",
+        ],
+      },
+      {
+        question: "How do they react to visible countdown clocks or time pressure during games?",
+        choices: [
+          "Freezes or panics (Timers must be strictly disabled)",
+          "Enjoys gentle pacing as long as there is no penalty",
+          "Thrives on fast-paced arcade action",
+        ],
+      },
+      {
+        question: "What visual and sensory environment works best for their learning focus?",
+        choices: [
+          "Calm, muted/pastel palette with minimal background noise",
+          "High-contrast, vibrant arcade visuals with instant feedback",
+          "Clean dark mode with subtle glowing accents",
+        ],
+      },
+    ];
+
+    const idx = Math.floor(Math.random() * questions.length);
+    const selected = questions[idx];
+
+    return {
+      intake_id: "intake-session",
+      question: selected.question,
+      input_type: "choice",
+      choices: selected.choices,
+      complete: false,
+    } as unknown as T;
+  }
+
+  // 7. POST /intake/:id/finalize
+  if (p.startsWith("/intake/") && p.endsWith("/finalize")) {
+    const body = init?.body ? JSON.parse(init.body as string) : {};
+    const newId = `child-${Date.now()}`;
+    const newProfile: Profile = {
+      id: newId,
+      name: body.name || "New Student",
+      age: body.age || 8,
+      interests: Array.isArray(body.interests) ? body.interests : ["outer space", "dinosaurs"],
+      leniency_band: "medium",
+      restlessness_interpretation: "distraction",
+      difficulty_floor: { addition: "low_double", subtraction: "single" },
+      session_length: 10,
+      constraints: {},
+    };
+    profilesState.unshift(newProfile);
+    return { profile_id: newId } as unknown as T;
+  }
+
+  // 8. GET /audit-log
   if (p === "/audit-log" || p === "/audit") {
     const audit: AuditEntry[] = [
       { id: "a1", actor: "system", action: "session_initialized", payload: { mode: "active" }, created_at: new Date().toISOString() },
-      { id: "a2", actor: "teacher", action: "profile_reviewed", payload: { note: "All 6 profiles active" }, created_at: new Date().toISOString() },
+      { id: "a2", actor: "teacher", action: "profile_reviewed", payload: { note: "All profiles active" }, created_at: new Date().toISOString() },
     ];
     return audit as unknown as T;
   }
 
-  // 6. Session metrics & release impact
+  // 9. Session metrics & release impact
   if (p.includes("session-metrics")) {
     const metrics: SessionMetrics = {
       points: [],
