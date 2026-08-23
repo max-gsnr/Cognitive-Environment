@@ -11,7 +11,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import audit, devin_client, prompts
+from app import (
+    audit,
+    devin_client,
+    difficulty,
+    gates,
+    posthog_client,
+    prompts,
+    telemetry_signals,
+)
 from app.config import settings
 from app.db import get_session
 from app.models import (
@@ -22,6 +30,7 @@ from app.models import (
     ReportedProblem,
     SubjectMastery,
 )
+from app.routers.attempts import baseline_for_tier
 from app.routers.demo import seed_posthog_events
 from app.routers.profiles import profile_dict
 from app.schemas import (
@@ -70,8 +79,15 @@ def gates_passed(gate_results: dict[str, Any] | None) -> bool:
     question objects matched ..." -- so only the leading word is the verdict, and
     anything that does not open with one (including prose that merely mentions
     passing) fails.
+
+    Our own re-check (app/gates.py) is stored under `independent` and is required
+    too when it ran: the session's report alone is not evidence about the session's
+    own work.
     """
     if not gate_results:
+        return False
+    independent = gate_results.get("independent")
+    if isinstance(independent, dict) and not independent.get("passed"):
         return False
     for gate in REQUIRED_GATES:
         value = gate_results.get(gate)
@@ -129,6 +145,7 @@ async def generate_game(
         title=f"Orbit: generate {body.skill_id} v{version} for {profile.name}",
     )
     game.devin_session_id = created.get("session_id")
+    game.provenance = _provenance(prompts.GENERATE_GAME_PROMPT, "generate")
     audit.record(
         session,
         actor="system",
@@ -166,18 +183,14 @@ async def iterate_game(
 
     since = datetime.now(UTC) - timedelta(days=3)
     breakdown = _error_class_breakdown(session, current.profile_id, current.skill_id)
+    signals = _signals(session, current, _recent_problem_count(session, current, since))
     notes = session.scalars(
         select(DevelopmentNote)
         .where(DevelopmentNote.profile_id == current.profile_id)
         .order_by(DevelopmentNote.created_at.desc())
         .limit(10)
     ).all()
-    problems = session.scalars(
-        select(ReportedProblem)
-        .where(ReportedProblem.profile_id == current.profile_id)
-        .order_by(ReportedProblem.created_at.desc())
-        .limit(10)
-    ).all()
+    problems = _problems(session, current.profile_id)
 
     # The next number in the roster, not current + 1: iterating an older ready
     # version must not collide with a version that already exists.
@@ -202,6 +215,7 @@ async def iterate_game(
         profile_id=current.profile_id,
         since_timestamp=since.isoformat(),
         new_version=new_version,
+        telemetry_signals_json=_json(signals),
     )
 
     session_secrets = (
@@ -223,6 +237,11 @@ async def iterate_game(
         version=new_version,
         status="iterating",
         devin_session_id=created.get("session_id"),
+        provenance={
+            **_provenance(prompts.ITERATE_PROMPT, "iterate"),
+            "from_version": current.version,
+            "telemetry_signals": signals,
+        },
     )
     session.add(successor)
     audit.record(
@@ -332,8 +351,16 @@ async def _poll(session: Session, game_id: str, action: str) -> dict[str, Any]:
     if not devin_client.is_finished(remote) or output is None:
         return _game_state(game, devin_status=remote.get("status_enum"))
 
-    game.gate_results = output.get("gate_results")
+    reported = dict(output.get("gate_results") or {})
     game.code_path = output.get("game_path") or game.code_path
+    mastery = session.get(SubjectMastery, (game.profile_id, game.skill_id))
+    reported["independent"] = await gates.verify(
+        game.code_path,
+        game.skill_id,
+        (mastery.difficulty_vector if mastery else None)
+        or difficulty.floor_vector("single_digit"),
+    )
+    game.gate_results = reported
     game.pr_url = output.get("pr_url") or devin_client.pull_request_url(remote)
     game.test_report = {
         key: output[key]
@@ -381,6 +408,7 @@ def _game_state(game: Game, devin_status: str | None = None) -> dict[str, Any]:
         "code_path": game.code_path,
         "gate_results": game.gate_results,
         "test_report": game.test_report,
+        "provenance": game.provenance,
     }
 
 
@@ -417,6 +445,88 @@ def _error_class_breakdown(
     for row in rows:
         breakdown[row.error_class] = breakdown.get(row.error_class, 0) + 1
     return breakdown
+
+
+def _signals(session: Session, game: Game, reported_problems: int) -> dict[str, Any]:
+    """Score this version's telemetry ourselves, before any session sees it.
+
+    Unconfigured PostHog is not a failure: the report says so, and the iteration
+    prompt still has its own read-only access to fall back on.
+    """
+    since = (datetime.now(UTC) - timedelta(days=3)).isoformat()
+    events = posthog_client.fetch_events(game.id, game.profile_id, since)
+    if not events:
+        return {
+            "available": False,
+            "reason": (
+                "no events found for this version"
+                if posthog_client.configured()
+                else "POSTHOG_PERSONAL_API_KEY / POSTHOG_PROJECT_ID are not set"
+            ),
+        }
+
+    profile = session.get(ChildProfile, game.profile_id)
+    return {
+        "available": True,
+        "event_count": len(events),
+        **telemetry_signals.report(
+            events,
+            baseline_ms=_baseline(session, game),
+            reported_problems=reported_problems,
+            restlessness_interpretation=(
+                profile.restlessness_interpretation if profile else "unknown"
+            ),
+        ),
+    }
+
+
+def _baseline(session: Session, game: Game) -> float | None:
+    """The child's usual pace at the tier they are on now."""
+    mastery = session.get(SubjectMastery, (game.profile_id, game.skill_id))
+    if mastery is None:
+        return None
+    return baseline_for_tier(
+        session,
+        game.profile_id,
+        game.skill_id,
+        difficulty.tier_key(mastery.difficulty_vector),
+    )
+
+
+def _provenance(template: str, kind: str) -> dict[str, Any]:
+    return {
+        "prompt": kind,
+        "prompt_revision": prompts.revision(template),
+        "agent": "devin",
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+
+
+def _recent_problem_count(session: Session, game: Game, since: datetime) -> int:
+    """Only this version's complaints, in the same window as the telemetry.
+
+    A problem reported months ago on another skill must not pin every future
+    diagnosis to frustration -- reported problems are never deleted.
+    """
+    return len(
+        session.scalars(
+            select(ReportedProblem).where(
+                ReportedProblem.game_id == game.id,
+                ReportedProblem.created_at >= since.replace(tzinfo=None),
+            )
+        ).all()
+    )
+
+
+def _problems(session: Session, profile_id: str) -> list[ReportedProblem]:
+    return list(
+        session.scalars(
+            select(ReportedProblem)
+            .where(ReportedProblem.profile_id == profile_id)
+            .order_by(ReportedProblem.created_at.desc())
+            .limit(10)
+        ).all()
+    )
 
 
 def _notes_text(notes: list[DevelopmentNote]) -> str:

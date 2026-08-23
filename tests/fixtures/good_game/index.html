@@ -1,0 +1,83 @@
+<!doctype html>
+<!--
+  A minimal stand-in for a generated game: it obeys the rendering-shell contract
+  (asks the backend for every question, posts every answer) and emits the events
+  Loop B reads. The gate checks are graded against this and against
+  ../bad_game/index.html, which breaks both.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Fixture game</title>
+    <style>
+      .pulse { animation: pulse 1.2s infinite; }
+      @keyframes pulse { from { opacity: 1 } to { opacity: 0.6 } }
+      input:focus { outline: 3px solid #ffb703; }
+    </style>
+  </head>
+  <body>
+    <h1 id="prompt">...</h1>
+    <input id="answer" inputmode="numeric" autofocus />
+    <p id="feedback"></p>
+    <script>
+      const API = "http://127.0.0.1:9/";
+      const capture = (event, properties) => {
+        window.__events = window.__events || [];
+        window.__events.push([event, properties]);
+      };
+      let question = null;
+
+      async function next() {
+        const response = await fetch(API + "next-question");
+        question = await response.json();
+        document.getElementById("prompt").textContent =
+          question.operands.join(" " + question.operator + " ") + " = ?";
+        capture("problem_shown", { operands: question.operands });
+      }
+
+      async function submit(value) {
+        const response = await fetch(API + "attempts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            operands: question.operands,
+            operator: question.operator,
+            answer_given: value,
+            latency_to_submit_ms: 1000,
+          }),
+        });
+        const result = await response.json();
+        document.getElementById("feedback").textContent = result.is_correct
+          ? "yes"
+          : "not yet";
+        capture("answer_submitted", {
+          attempt_id: result.attempt_id,
+          correct: result.is_correct,
+          error_class: result.error_class,
+          time_to_solve_ms: 1000,
+        });
+        await next();
+      }
+
+      document.getElementById("answer").addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        const value = Number(e.target.value);
+        e.target.value = "";
+        submit(value);
+      });
+
+      setInterval(() => capture("idle_tick", {}), 5000);
+      document.addEventListener("keyup", () =>
+        capture("edit_event", { type: "immediate_correction" })
+      );
+      document.addEventListener("mousemove", () =>
+        capture("motion_event", { type: "micro_jitter" })
+      );
+      window.addEventListener("beforeunload", () =>
+        capture("level_abandoned", {})
+      );
+      capture("level_started", {});
+      next();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "name": "too_short_to_judge",
+  "why": "Two questions is not a session. Guessing a diagnosis from it is how a child gets their game rewritten for no reason.",
+  "baseline_ms": 4000.0,
+  "events": [
+    {
+      "event": "level_started",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 900,
+        "correct": false,
+        "error_class": "counting_slip"
+      }
+    }
+  ],
+  "expected_signal": "inconclusive",
+  "expected_change_tier": "none"
+}

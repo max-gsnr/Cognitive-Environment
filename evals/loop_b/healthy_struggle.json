@@ -1,0 +1,205 @@
+{
+  "name": "healthy_struggle",
+  "why": "Jitter plus corrections after a pause is a child working hard. Weakening the game here would be the wrong move.",
+  "baseline_ms": 4000.0,
+  "events": [
+    {
+      "event": "level_started",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "problem_shown",
+      "properties": {}
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "motion_event",
+      "properties": {
+        "type": "micro_jitter"
+      }
+    },
+    {
+      "event": "edit_event",
+      "properties": {
+        "type": "after_pause_correction"
+      }
+    },
+    {
+      "event": "edit_event",
+      "properties": {
+        "type": "after_pause_correction"
+      }
+    },
+    {
+      "event": "edit_event",
+      "properties": {
+        "type": "after_pause_correction"
+      }
+    },
+    {
+      "event": "edit_event",
+      "properties": {
+        "type": "after_pause_correction"
+      }
+    },
+    {
+      "event": "edit_event",
+      "properties": {
+        "type": "after_pause_correction"
+      }
+    },
+    {
+      "event": "edit_event",
+      "properties": {
+        "type": "immediate_correction"
+      }
+    },
+    {
+      "event": "edit_event",
+      "properties": {
+        "type": "immediate_correction"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 7000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 7000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 7000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 7000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 7000,
+        "correct": true,
+        "error_class": "correct"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 6000,
+        "correct": false,
+        "error_class": "counting_slip"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 6000,
+        "correct": false,
+        "error_class": "counting_slip"
+      }
+    },
+    {
+      "event": "answer_submitted",
+      "properties": {
+        "time_to_solve_ms": 6000,
+        "correct": false,
+        "error_class": "counting_slip"
+      }
+    }
+  ],
+  "expected_signal": "healthy_struggle",
+  "expected_change_tier": "none"
+}

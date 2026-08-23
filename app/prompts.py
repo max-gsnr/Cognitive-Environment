@@ -4,7 +4,13 @@ These are contracts, not drafts: the intake pair is what OpenAI sees, and the
 generation/iteration pair is what a Devin session sees. Edit deliberately ---
 `{placeholders}` are filled by `render()` below, which substitutes literally
 so the JSON braces inside a prompt survive untouched.
+
+`revision()` fingerprints a prompt so a generated game records which wording
+produced it: without that, comparing two versions tells you the model changed
+its mind but not whether we changed the instructions underneath it.
 """
+
+import hashlib
 
 INTAKE_QUESTION_PROMPT = """\
 You are conducting a live, branching intake interview for Orbit, an
@@ -124,7 +130,9 @@ IMPORTANT ARCHITECTURE NOTE: this game is a RENDERING SHELL, not the
 source of difficulty logic. It must call GET
 /profiles/{profile_id}/skills/{skill_id}/next-question for every new
 question, and POST /attempts with the child's answer every time one is
-submitted. It must NOT implement its own difficulty or correctness logic.
+submitted, and it must forward the `attempt_id` from that response into
+the answer_submitted event so telemetry joins back to the stored attempt.
+It must NOT implement its own difficulty or correctness logic.
 The backend owns question generation and error classification.
 
 TASK
@@ -149,10 +157,11 @@ TASK
 5. Include a visible "Report a problem" button that POSTs a short
    description to /games/{game_id}/report-problem.
 6. Instrument with PostHog (project key: {posthog_project_key}, host:
-   {posthog_host}). Emit problem_shown, answer_submitted {correct,
-   time_to_solve_ms, error_class} (error_class comes back from the
-   /attempts response -- forward it into the event, do not compute it
-   client-side), idle_tick (every 5s idle), edit_event {type:
+   {posthog_host}). Emit problem_shown, answer_submitted {attempt_id,
+   correct, time_to_solve_ms, error_class} (attempt_id and error_class
+   both come back from the /attempts response -- forward them into the
+   event, do not compute them client-side), idle_tick (every 5s idle),
+   edit_event {type:
    immediate_correction if a backspace lands under 1s after the last
    keystroke, after_pause_correction if 2s or more}, motion_event {type:
    micro_jitter for rapid small-radius direction reversals,
@@ -224,7 +233,20 @@ CHILD-REPORTED PROBLEMS (from the in-game "report a problem" button --
 treat these as high priority, explicit signals from the child):
 {reported_problems_text}
 
-POSTHOG ACCESS
+PRECOMPUTED SIGNALS (ground truth -- do not recompute these yourself)
+The backend already folded this version's telemetry into named signals with
+the same arithmetic this prompt used to ask you to do by hand, so that the
+same session always reads the same way and can be regression-tested offline
+(app/telemetry_signals.py). Treat them as given:
+{telemetry_signals_json}
+
+If `dominant_signal` is "healthy_struggle" or "inconclusive", the correct
+action is to change nothing: say so in your diagnosis, do not open a PR, and
+report the gates as skipped. If it is "none" for change_tier, the same
+applies. Disagree with the summarizer only if PostHog shows something it
+could not see, and say explicitly what that was.
+
+POSTHOG ACCESS (for detail the signals above do not cover)
 A read-only PostHog personal API key is available in this session as the
 secret POSTHOG_PERSONAL_API_KEY (never print its value). Project id:
 {posthog_project_id}. Host: {posthog_host}. Query the PostHog HTTP API
@@ -259,7 +281,8 @@ elsewhere):
 | High time-to-solve on CORRECT answers, repeatedly | Working-memory bottleneck, not a math gap | Add a visual scaffold -- draggable countable objects instead of typed digits (STRUCTURAL) |
 
 TASK
-1. Query PostHog and compute the signals above.
+1. Read the precomputed signals. Query PostHog only for context they do not
+   cover (e.g. which questions the idles clustered around).
 2. Read the error-class breakdown, teacher/parent notes, and reported
    problems for additional context -- a note like "rough week at home"
    should make you cautious about reading one bad session as regression.
@@ -294,6 +317,11 @@ Return structured JSON:
                                  could read"
 }
 """
+
+
+def revision(template: str) -> str:
+    """A short, stable fingerprint of the prompt text itself, before filling."""
+    return hashlib.sha256(template.encode()).hexdigest()[:12]
 
 
 def render(template: str, **values: object) -> str:

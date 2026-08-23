@@ -1,3 +1,6 @@
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -9,9 +12,11 @@ from app.models import (
     ChildProfile,
     Game,
     IntakeSession,
+    ReportedProblem,
     SubjectMastery,
 )
 from app.routers import games, intake
+from app.routers.games import REQUIRED_GATES as REQUIRED
 from app.routers.games import gates_passed
 from app.routers.intake import _restlessness
 
@@ -354,6 +359,79 @@ def test_only_a_gated_version_can_go_live(client, profile):
         broken_id = broken.id
 
     assert client.post(f"/games/{broken_id}/rollback").status_code == 409
+
+
+def test_an_old_complaint_elsewhere_does_not_count_as_frustration(client, profile):
+    """Reported problems are never deleted, so the count must be scoped."""
+    with SessionLocal() as session:
+        game = Game(profile_id=profile, skill_id="addition", version=1, status="ready")
+        other = Game(profile_id=profile, skill_id="subtraction", version=1)
+        session.add_all([game, other])
+        session.commit()
+        session.add_all(
+            [
+                ReportedProblem(
+                    profile_id=profile, game_id=other.id, description="stuck"
+                ),
+                ReportedProblem(
+                    profile_id=profile,
+                    game_id=game.id,
+                    description="froze last month",
+                    created_at=datetime.now(UTC).replace(tzinfo=None)
+                    - timedelta(days=30),
+                ),
+            ]
+        )
+        session.commit()
+        since = datetime.now(UTC) - timedelta(days=3)
+
+        assert games._recent_problem_count(session, game, since) == 0
+
+        session.add(
+            ReportedProblem(profile_id=profile, game_id=game.id, description="froze")
+        )
+        session.commit()
+        assert games._recent_problem_count(session, game, since) == 1
+
+
+def test_a_session_reporting_its_own_gates_green_cannot_ship_a_broken_game(
+    client, profile, monkeypatch
+):
+    """The whole point of the independent check: the report is not the evidence."""
+    broken_game = str(Path(__file__).parent / "fixtures" / "bad_game")
+
+    async def finished(_session_id):
+        return {
+            "status_enum": "blocked",
+            "structured_output": {
+                "game_path": broken_game,
+                "gate_results": {gate: "PASS - looks good to me" for gate in REQUIRED},
+            },
+        }
+
+    monkeypatch.setattr(games.devin_client, "get_session", finished)
+
+    with SessionLocal() as session:
+        game = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=1,
+            status="generating",
+            devin_session_id="devin-test",
+        )
+        session.add(game)
+        session.commit()
+        game_id = game.id
+
+    body = client.get(f"/games/{game_id}/status").json()
+
+    assert body["status"] == "gates_failed"
+    assert body["is_live"] is False
+    independent = body["gate_results"]["independent"]
+    assert independent["passed"] is False
+    # It invents its own questions and emits none of the telemetry Loop B reads.
+    assert independent["shell_contract"].startswith("FAIL")
+    assert independent["instrumentation"].startswith("FAIL")
 
 
 def test_a_gate_verdict_may_carry_its_evidence():
