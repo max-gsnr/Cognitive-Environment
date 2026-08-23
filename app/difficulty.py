@@ -45,10 +45,6 @@ SKILL_FLAGS: dict[str, list[str]] = {
     SUBTRACTION: ["borrows", "zero_in_minuend"],
 }
 
-# How much of a decrement a single bad attempt is worth. A high-leniency child
-# needs three rough attempts to move as far as a low-leniency child moves on one.
-LENIENCY_WEIGHTS: dict[str, float] = {"low": 1.0, "medium": 0.5, "high": 0.34}
-
 
 def base_vector(digits: int = 1) -> Vector:
     return {
