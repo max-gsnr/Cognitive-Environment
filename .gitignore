@@ -1,21 +1,55 @@
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
 .venv/
 venv/
+env/
+ENV/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
 .DS_Store
+*.log
 
-# Orbit
+# Orbit Environment & Secrets
 .env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+!frontend/.env.example
+
+# Local Databases
 *.db
+*.db-journal
+*.sqlite
+*.sqlite3
+orbit.db
+
+# Certificates & Keys
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+credentials.json
+service-account*.json
+
+# Node & Build Artifacts
 node_modules/
 dist/
+build/
+frontend/dist/
+frontend/node_modules/
+frontend/tsconfig.tsbuildinfo
 
-# Entire keeps logs and scratch state here; settings.json is meant to be shared.
+# Entire state
 .entire/logs/
 .entire/tmp/
 .entire/metadata/
 .entire/settings.local.json
-frontend/tsconfig.tsbuildinfo
+
