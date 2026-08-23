@@ -21,7 +21,7 @@ export interface PixelArtCanvasSequenceProps {
 }
 
 export function PixelArtCanvasSequence({
-  frameCount = 146,
+  frameCount = 58,
   getFrameUrl = (i) => `/sequence/frame_${String(i + 1).padStart(4, "0")}.jpg`,
   scrollDistance = "+=350%",
   pixelArtMode = true,
@@ -143,7 +143,7 @@ export function PixelArtCanvasSequence({
           scrub: 1, // Smooth physics scrubbing
           start: "top top",
           end: scrollDistance,
-          onUpdate: (self) => {
+          onUpdate: (self: { progress: number }) => {
             const index = Math.min(
               frameCount - 1,
               Math.max(0, Math.round(frameState.frame)),

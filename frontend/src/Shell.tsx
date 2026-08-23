@@ -5,23 +5,48 @@ export function Shell() {
   const isLanding = location.pathname === "/" || location.pathname === "/landing";
 
   return (
-    <div className="shell" style={isLanding ? { margin: 0, padding: 0, overflowX: "hidden" } : undefined}>
+    <div className={`shell-root ${isLanding ? "landing-mode" : "grassy-world-mode"}`}>
       {!isLanding && (
-        <header>
-          <NavLink to="/" className="brand">
-            NEURO
-          </NavLink>
-          <nav>
-            <NavLink to="/">Home</NavLink>
-            <NavLink to="/roster">Roster</NavLink>
-            <NavLink to="/intake">New child</NavLink>
-            <NavLink to="/audit">Audit log</NavLink>
-          </nav>
-        </header>
+        <>
+          {/* 16-Bit Animated Pixel Clouds */}
+          <div className="pixel-cloud-sky" aria-hidden="true">
+            <div className="pixel-cloud cloud-slow" />
+            <div className="pixel-cloud cloud-med" />
+            <div className="pixel-cloud cloud-fast" />
+          </div>
+
+          {/* 16-Bit Retro Arcade Top Header */}
+          <header className="retro-arcade-header">
+            <NavLink to="/" className="brand-logo-link">
+              <img src="/neuro-logo.png" alt="NEURO" className="brand-logo-img" />
+              <span className="brand-title">NEURO</span>
+            </NavLink>
+            <nav className="retro-nav">
+              <NavLink to="/roster" className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}>
+                🎒 Student Roster
+              </NavLink>
+              <NavLink to="/intake" className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}>
+                ✨ New Child
+              </NavLink>
+              <NavLink to="/audit" className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}>
+                📜 Audit Log
+              </NavLink>
+            </nav>
+          </header>
+        </>
       )}
-      <main style={isLanding ? { maxWidth: "100%", margin: 0, padding: 0, width: "100%" } : undefined}>
+
+      <main className={`main-viewport ${isLanding ? "main-landing" : "main-elevated-world"}`}>
         <Outlet />
       </main>
+
+      {!isLanding && (
+        <footer className="pixel-grass-footer" aria-hidden="true">
+          <div className="pixel-grass-blade-layer" />
+          <div className="pixel-dirt-layer" />
+        </footer>
+      )}
     </div>
   );
 }
+
