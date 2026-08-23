@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Press+Start+2P&display=swap');
+
 :root {
   --ink: #1c2333;
   --paper: #f6f7fb;
@@ -5,7 +7,26 @@
   --calm-soft: #e4ecf9;
   --ok: #2f7a5a;
   --space-dark: #0b0f19;
-  color-scheme: light;
+  color-scheme: dark;
+}
+
+html, body, #root, .shell, main {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+  background-color: #000000 !important;
+}
+
+/* GSAP Pin Spacer Full-Bleed Fix */
+.pin-spacer {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background-color: #000000 !important;
 }
 
 * {
@@ -13,10 +34,8 @@
 }
 
 body {
-  margin: 0;
-  background: var(--paper);
-  color: var(--ink);
   font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #fff;
 }
 
 a {
@@ -33,15 +52,16 @@ a {
   align-items: baseline;
   gap: 24px;
   padding: 16px 32px;
-  background: #fff;
-  border-bottom: 1px solid #e3e6ef;
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
 }
 
 .shell header .brand {
   font-size: 20px;
   font-weight: 700;
   text-decoration: none;
-  color: var(--ink);
+  color: #facc15;
+  font-family: 'Press Start 2P', monospace;
 }
 
 .shell nav {
@@ -61,11 +81,12 @@ h1 {
 }
 
 .card {
-  background: #fff;
-  border: 1px solid #e3e6ef;
+  background: #1e293b;
+  border: 1px solid #334155;
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 16px;
+  color: #f8fafc;
 }
 
 button {
@@ -76,15 +97,6 @@ button {
   background: var(--calm);
   color: #fff;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
-}
-
-button:hover:not(:disabled) {
-  opacity: 0.95;
-}
-
-button:active:not(:disabled) {
-  transform: scale(0.98);
 }
 
 button.secondary {
@@ -102,9 +114,10 @@ select,
 textarea {
   font: inherit;
   padding: 10px 12px;
-  border: 1px solid #c6ccdb;
+  border: 1px solid #334155;
   border-radius: 10px;
-  background: #fff;
+  background: #0f172a;
+  color: #fff;
   width: 100%;
 }
 
@@ -117,7 +130,7 @@ label {
 label span {
   display: block;
   font-weight: 400;
-  color: #5a6480;
+  color: #94a3b8;
   font-size: 14px;
 }
 
@@ -134,7 +147,7 @@ ul.plain {
 }
 
 .muted {
-  color: #5a6480;
+  color: #94a3b8;
 }
 
 .pill {
@@ -143,53 +156,29 @@ ul.plain {
   border-radius: 999px;
   background: var(--calm-soft);
   font-size: 13px;
+  color: var(--ink);
 }
 
 .error {
-  color: #8a2f2f;
+  color: #f87171;
 }
 
-/* ==========================================================================
-   OpenGame Arena & Orbit Canvas Styling
-   ========================================================================== */
-
-.play-page-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.play-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.hud-badge {
-  background: #0f172a;
-  color: #38bdf8;
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-weight: 600;
-  font-size: 14px;
-  border: 1px solid #1e293b;
-}
-
-.orbit-game-container {
+/* Open Game Arena Styling */
+.arena-container {
   display: flex;
   flex-direction: column;
   background: #0b0f19;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
   border: 1px solid #1e293b;
+  margin-bottom: 24px;
 }
 
-.game-toolbar {
+.arena-top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
+  padding: 12px 20px;
   background: #0f172a;
   border-bottom: 1px solid #1e293b;
   flex-wrap: wrap;
@@ -308,10 +297,7 @@ ul.plain {
   margin-top: 8px;
 }
 
-/* ==========================================================================
-   Game Creator Studio Styling
-   ========================================================================== */
-
+/* Game Creator Studio Styling */
 .studio-tabs {
   display: flex;
   gap: 10px;
@@ -720,495 +706,50 @@ ul.plain {
   flex-wrap: wrap;
 }
 
-/* ==========================================================================
-   Dashboards: Session Monitor and Release Impact
-   Calm on purpose. The reader is a teacher watching a child with ADHD, so:
-   muted palette on white, no animation that carries meaning, state encoded by
-   shape as well as colour, and every chart paired with words.
-   ========================================================================== */
-
-:root {
-  --chart-band: #e8f0fb;
-  --chart-line: #3f6fb5;
-  --chart-good: #2f7a5a;
-  --chart-watch: #a4601b;
-  --chart-grid: #e7eaf2;
-  --chart-muted: #6b7385;
+/* 16-Bit Pixel Art Heading & UI Animations */
+@keyframes neuro-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
 }
 
-/* The play view is wider than the rest of the app: it holds a game and a
-   dashboard at once. Centre a wider block inside the standard column. */
-.play-page-layout {
-  width: min(1340px, 94vw);
-  margin-left: calc(-1 * (min(1340px, 94vw) - 100%) / 2);
+@keyframes neuro-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-.play-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(340px, 1fr);
-  gap: 20px;
-  align-items: start;
+@keyframes neuro-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(8px); }
 }
 
-.play-main {
-  min-width: 0;
+.neuro-logo-anim {
+  animation: neuro-float 3s ease-in-out infinite;
 }
 
-.play-side {
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
+.neuro-spinner {
+  animation: neuro-spin 1s linear infinite;
 }
 
-@media (max-width: 1080px) {
-  .play-page-layout {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .play-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .play-side {
-    position: static;
-    max-height: none;
-  }
+.neuro-bounce {
+  animation: neuro-bounce 1.5s infinite;
 }
 
-.monitor h2 {
-  margin: 0;
-}
-
-.monitor-head {
-  border-bottom: 1px solid var(--chart-grid);
-  padding-bottom: 12px;
-  margin-bottom: 16px;
-}
-
-.monitor-verdict {
-  margin: 8px 0 0;
-  font-size: 15px;
-}
-
-.chart-caveat {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: var(--chart-watch);
-}
-
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.stat {
+/* Centered End Reveal Overlay */
+.neuro-end-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #fafbfe;
-  border: 1px solid var(--chart-grid);
-  border-left: 3px solid var(--chart-muted);
-}
-
-/* Neutral is the default tile: no verdict attached, so the grey border stays. */
-.stat-neutral {
-  border-left-color: var(--chart-muted);
-}
-
-.stat-good {
-  border-left-color: var(--chart-good);
-}
-
-.stat-watch {
-  border-left-color: var(--chart-watch);
-}
-
-.stat-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--chart-muted);
-  font-weight: 600;
-}
-
-.stat-value {
-  font-size: 22px;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-
-.stat-note {
-  font-size: 12px;
-  color: var(--chart-muted);
-}
-
-.chart {
-  margin: 0 0 24px;
-}
-
-.chart-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.chart h3 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.chart-alt {
-  padding: 2px 8px;
-  font-size: 12px;
-  background: none;
-  color: var(--calm);
-  border: 1px solid var(--chart-grid);
-}
-
-.chart-why {
-  margin: 4px 0 10px;
-  font-size: 13px;
-  color: var(--chart-muted);
-}
-
-.chart-summary,
-.chart-readout {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: var(--chart-muted);
-  min-height: 18px;
-}
-
-.chart-svg {
-  width: 100%;
-  height: auto;
-  display: block;
-  overflow: visible;
-}
-
-.band {
-  fill: var(--chart-band);
-}
-
-.band-label,
-.axis-label,
-.dot-marker,
-.release-label {
-  font-size: 10px;
-  fill: var(--chart-muted);
-}
-
-.gridline {
-  stroke: var(--chart-grid);
-  stroke-width: 1;
-}
-
-.series {
-  fill: none;
-  stroke: var(--chart-line);
-  stroke-width: 2;
-  stroke-opacity: 0.55;
-}
-
-.series.step {
-  stroke-opacity: 0.85;
-}
-
-.dot {
-  fill: #fff;
-  stroke: var(--chart-line);
-  stroke-width: 2;
-}
-
-/* Inside the band is filled, outside is hollow: shape carries the meaning so
-   the chart still reads with the colour removed. */
-.dot.in-band {
-  fill: var(--chart-line);
-}
-
-.dot.wrong {
-  stroke: var(--chart-watch);
-}
-
-.dot.wrong.in-band {
-  fill: var(--chart-watch);
-}
-
-.dot-hit {
-  fill: transparent;
-}
-
-.dot-group {
-  cursor: pointer;
-}
-
-.dot-group:hover .dot,
-.dot-group:focus-visible .dot,
-.dot-group.is-selected .dot {
-  stroke-width: 3;
-}
-
-.dot-group.is-selected .dot {
-  stroke: var(--ink);
-}
-
-.release-line {
-  stroke: var(--ink);
-  stroke-width: 1.5;
-  stroke-dasharray: 4 4;
-  stroke-opacity: 0.5;
-}
-
-.chart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 10px;
-  font-size: 12px;
-  color: var(--chart-muted);
-}
-
-.legend-item {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-}
-
-.key-dot,
-.key-square,
-.key-hollow {
-  width: 10px;
-  height: 10px;
-  background: var(--chart-line);
-  border: 2px solid var(--chart-line);
-}
-
-.key-dot {
-  border-radius: 50%;
-}
-
-.key-square {
-  background: var(--chart-watch);
-  border-color: var(--chart-watch);
-}
-
-.key-hollow {
-  background: #fff;
-  border-radius: 50%;
-}
-
-.key-text {
-  font-size: 10px;
-  border: 1px solid var(--chart-grid);
-  border-radius: 4px;
-  padding: 0 4px;
-}
-
-.bar-list {
-  list-style: none;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
   margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.bar-list li {
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) 2fr auto;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-}
-
-.bar-track,
-.mini-track {
-  display: block;
-  background: var(--chart-grid);
-  border-radius: 4px;
-  height: 10px;
-  overflow: hidden;
-}
-
-.bar-fill,
-.mini-fill {
-  display: block;
-  height: 100%;
-  background: var(--chart-line);
-  border-radius: 4px;
-}
-
-.mini-fill.after {
-  background: var(--chart-good);
-}
-
-.bar-label {
-  overflow-wrap: anywhere;
-}
-
-.bar-value {
-  font-variant-numeric: tabular-nums;
-}
-
-.delta-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.delta-table th,
-.delta-table td {
-  text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--chart-grid);
-  vertical-align: middle;
-}
-
-.delta-table thead th {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--chart-muted);
-}
-
-.delta-table tbody th {
-  font-weight: 600;
-}
-
-.row-why {
-  display: block;
-  font-weight: 400;
-  font-size: 12px;
-  color: var(--chart-muted);
-}
-
-.mini-value {
-  display: block;
-  margin-top: 4px;
-  font-variant-numeric: tabular-nums;
-  color: var(--chart-muted);
-}
-
-.chip {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-size: 12px;
-  white-space: nowrap;
-  border: 1px solid var(--chart-grid);
-}
-
-.chip-up {
-  background: #eaf4ee;
-  border-color: var(--chart-good);
-  color: var(--chart-good);
-}
-
-.chip-down {
-  background: #fbf1e7;
-  border-color: var(--chart-watch);
-  color: var(--chart-watch);
-}
-
-.chip-flat {
-  color: var(--chart-muted);
-}
-
-.funnel {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 12px;
-}
-
-.funnel-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.funnel-bar {
-  display: block;
-  min-width: 34px;
-  padding: 4px 10px;
-  background: var(--chart-line);
-  color: #fff;
-  border-radius: 6px;
-  font-variant-numeric: tabular-nums;
-}
-
-.funnel-hint {
-  display: block;
-  font-size: 12px;
-  color: var(--chart-muted);
-}
-
-.metric-switch {
-  display: flex;
-  gap: 6px;
-}
-
-.metric-switch button {
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
-.metric-switch button.is-active {
-  background: var(--calm);
-  color: #fff;
-}
-
-.caveats {
-  border-top: 1px solid var(--chart-grid);
-  padding-top: 12px;
-  font-size: 13px;
-}
-
-.caveats h3 {
-  font-size: 14px;
-  margin: 0 0 6px;
-}
-
-.caveats ul {
-  margin: 0 0 12px;
-  padding-left: 18px;
-  color: var(--chart-muted);
-}
-
-.impact-section {
-  margin-bottom: 16px;
-}
-
-.impact-controls {
-  display: flex;
-  align-items: end;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.impact-controls label {
-  margin: 0;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
-  }
+  box-sizing: border-box;
 }

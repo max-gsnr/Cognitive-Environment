@@ -7,6 +7,7 @@ import "./styles.css";
 import { AuditPage } from "./pages/AuditPage";
 import { GeneratePage } from "./pages/GeneratePage";
 import { IntakePage } from "./pages/IntakePage";
+import { LandingPage } from "./pages/LandingPage";
 import { PlayPage } from "./pages/PlayPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RosterPage } from "./pages/RosterPage";
@@ -16,7 +17,9 @@ const router = createBrowserRouter([
     path: "/",
     element: <Shell />,
     children: [
-      { index: true, element: <RosterPage /> },
+      { index: true, element: <LandingPage /> },
+      { path: "landing", element: <LandingPage /> },
+      { path: "roster", element: <RosterPage /> },
       { path: "intake", element: <IntakePage /> },
       { path: "profiles/:profileId", element: <ProfilePage /> },
       { path: "profiles/:profileId/generate/:skillId", element: <GeneratePage /> },
