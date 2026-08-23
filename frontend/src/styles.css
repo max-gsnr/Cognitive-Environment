@@ -1,0 +1,198 @@
+:root {
+  --ink: #1c2333;
+  --paper: #f6f7fb;
+  --calm: #3f6fb5;
+  --calm-soft: #e4ecf9;
+  --ok: #2f7a5a;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+a {
+  color: var(--calm);
+}
+
+:focus-visible {
+  outline: 3px solid var(--calm);
+  outline-offset: 2px;
+}
+
+.shell header {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+  padding: 16px 32px;
+  background: #fff;
+  border-bottom: 1px solid #e3e6ef;
+}
+
+.shell header .brand {
+  font-size: 20px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.shell nav {
+  display: flex;
+  gap: 16px;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+h1 {
+  font-size: 26px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e3e6ef;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+button {
+  font: inherit;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--calm);
+  background: var(--calm);
+  color: #fff;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #fff;
+  color: var(--calm);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid #c6ccdb;
+  border-radius: 10px;
+  background: #fff;
+  width: 100%;
+}
+
+label {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+label span {
+  display: block;
+  font-weight: 400;
+  color: #5a6480;
+  font-size: 14px;
+}
+
+ul.plain {
+  list-style: none;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.muted {
+  color: #5a6480;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--calm-soft);
+  font-size: 13px;
+}
+
+.error {
+  color: #8a2f2f;
+}
+
+/* The play surface: one focal point, no timer, no red. */
+.play {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.play .sum {
+  font-size: 64px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  margin-bottom: 24px;
+}
+
+.play input {
+  font-size: 40px;
+  text-align: center;
+  max-width: 220px;
+  margin: 0 auto;
+}
+
+.play .feedback {
+  margin-top: 24px;
+  font-size: 20px;
+  min-height: 32px;
+  color: var(--ok);
+  /* Transitions stay slow enough to sit far below 3Hz. */
+  transition: opacity 400ms ease;
+}
+
+.play .feedback.retry {
+  color: var(--calm);
+}
+
+.teacher-view {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.teacher-view dt {
+  color: #5a6480;
+}
+
+.teacher-view dd {
+  margin: 0;
+}
+
+.diff {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.diff h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #5a6480;
+}

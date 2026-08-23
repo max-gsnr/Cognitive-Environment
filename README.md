@@ -50,19 +50,53 @@ entire why path/to/file                   # why this code exists
 `docs/ENTIRE.md` covers the architecture, the hook lifecycle, and what the integration
 does and does not capture.
 
+## Orbit
+
+**Orbit** is the system this provenance layer exists for: an ADHD-focused adaptive math
+game where the numbers are tuned by a plain script and the *game itself* is written and
+rewritten by Devin. A teacher must be able to ask "why does Leo's game pause for 2.5
+seconds after a wrong answer?" and get back the session, the prompt, and the telemetry
+that motivated it.
+
+Two loops, deliberately separated:
+
+| | Loop A — difficulty | Loop B — the game |
+| --- | --- | --- |
+| Runs | after every single answer | after a play session |
+| Decided by | pure Python over the database | a Devin session |
+| Changes | which numbers come next | pacing, rewards, scaffolding, bugs |
+| Ships as | a row in `subject_mastery` | a gated pull request |
+
+Loop A never calls a model. `POST /attempts` classifies the answer (`borrow_omitted`,
+`carry_omitted`, `place_value_misalignment`, …), compares latency against a three-day
+per-tier baseline, and moves one axis of the difficulty vector. Loop B hands Devin the
+profile, the error breakdown, the teacher's notes and a scoped PostHog key, and only
+marks a generated game live once all four gates — schema, assertions, headless
+playthrough, render/accessibility — report a pass.
+
+| Piece | Where |
+| --- | --- |
+| Deterministic core | `app/difficulty.py`, `app/error_taxonomy.py`, `app/baseline.py`, `app/adaptation.py` |
+| API | `app/routers/` (intake, profiles, attempts, games, audit, demo) |
+| Prompts, verbatim | `app/prompts.py` |
+| Teacher + child UI | `frontend/` (React, Vite) |
+| Generated games | `games/{profile_id}/{skill_id}/v{n}/` |
+
+```bash
+cp .env.example .env             # OpenAI, Devin and PostHog keys; SQLite otherwise
+.venv/bin/uvicorn app.main:app --reload
+cd frontend && npm install && npm run dev
+```
+
+The intake interview needs `OPENAI_API_KEY`; game generation and iteration need
+`DEVIN_API_KEY`. Everything else — the roster, the adaptive question loop, the audit
+log — runs without any external key.
+
 ## Development
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
-.venv/bin/pytest        # protocol compliance + bridge behaviour
+.venv/bin/pytest        # deterministic core + API behaviour
 .venv/bin/ruff check .
+cd frontend && npm run build
 ```
-
-## Why this repository exists
-
-It is the provenance layer for **Orbit**, a system that evolves a child's educational game
-from that child's own telemetry by fanning out parallel Devin sessions. Agent-written code
-in a learning tool has to be auditable — a teacher must be able to ask "why does Leo's game
-pause for 2.5 seconds after a wrong answer?" and get back the session, the prompt, and the
-telemetry that motivated it. Entire is that answer, and this integration is what makes it
-reach Devin. Orbit itself is not in this repository yet.
