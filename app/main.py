@@ -66,3 +66,37 @@ def health() -> dict[str, Any]:
         "posthog_configured": bool(settings.posthog_project_api_key),
         "database": settings.database_url.split("://", 1)[0],
     }
+
+
+# Unified full-stack serving (Serves React frontend & API from the same port on Render)
+_root_dir = os.path.dirname(os.path.dirname(__file__))
+_frontend_dist = os.path.join(_root_dir, "frontend", "dist")
+_frontend_public = os.path.join(_root_dir, "frontend", "public")
+
+if os.path.exists(os.path.join(_frontend_dist, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(_frontend_dist, "assets")), name="assets")
+
+if os.path.exists(os.path.join(_frontend_public, "sequence")):
+    app.mount("/sequence", StaticFiles(directory=os.path.join(_frontend_public, "sequence")), name="sequence")
+
+
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    from fastapi.responses import FileResponse
+
+    if not os.path.exists(os.path.join(_frontend_dist, "index.html")):
+        return {"status": "ok", "message": "FastAPI Backend Running (Frontend not yet built)"}
+
+    # Check dist directory for matching static file
+    dist_file = os.path.join(_frontend_dist, full_path)
+    if os.path.isfile(dist_file):
+        return FileResponse(dist_file)
+
+    # Check public directory for matching static file (e.g. logos, sequence)
+    pub_file = os.path.join(_frontend_public, full_path)
+    if os.path.isfile(pub_file):
+        return FileResponse(pub_file)
+
+    # Default to React SPA index.html for client-side routing
+    return FileResponse(os.path.join(_frontend_dist, "index.html"))
+
