@@ -12,11 +12,12 @@ def test_increment_walks_bands_then_flags_then_digits():
 
     vector = difficulty.increment(vector, ADDITION)
     assert vector["magnitude"] == "mid_double"
-    vector = difficulty.increment(vector, ADDITION)
-    assert vector["magnitude"] == "high_double"
 
+    # 70-99 without a carry describes nothing, so carrying comes first instead.
     vector = difficulty.increment(vector, ADDITION)
-    assert vector["carries"] is True
+    assert (vector["magnitude"], vector["carries"]) == ("mid_double", True)
+    vector = difficulty.increment(vector, ADDITION)
+    assert (vector["magnitude"], vector["carries"]) == ("high_double", True)
 
     vector = difficulty.increment(vector, ADDITION)
     assert vector["digits"] == 3
@@ -47,7 +48,37 @@ def test_decrement_honours_the_axis_the_error_class_names():
     vector = {**base_vector(3), "borrows": True, "zero_in_minuend": True}
     moved = difficulty.decrement(vector, SUBTRACTION, axis="borrows")
     assert moved["borrows"] is False
-    assert moved["zero_in_minuend"] is True
+    # Dropping borrows has to take the zero with it; borrowing across a zero is
+    # still borrowing, so the pair would describe no question at all.
+    assert moved["zero_in_minuend"] is False
+
+
+def test_single_digit_subtraction_skips_borrowing_and_grows_a_digit():
+    """a >= b at one digit can never borrow, so that rung does not exist."""
+    vector = difficulty.increment(base_vector(1), SUBTRACTION)
+    assert vector["digits"] == 2
+    assert vector["borrows"] is False
+
+
+@pytest.mark.parametrize("skill", [ADDITION, SUBTRACTION])
+def test_the_whole_ladder_only_asks_answerable_questions(skill):
+    """Every rung must generate on its own terms, never the 1-1 fallback."""
+    rng = random.Random(11)
+    vector = base_vector(1)
+    seen = set()
+    while difficulty.tier_key(vector) not in seen:
+        seen.add(difficulty.tier_key(vector))
+        for _ in range(20):
+            question = difficulty.next_question(vector, skill, rng)
+            a, b = question["operands"]
+            if skill == ADDITION:
+                assert difficulty._has_carry(a, b) is bool(vector["carries"])
+            else:
+                assert difficulty._has_borrow(a, b) is bool(vector["borrows"])
+                assert difficulty._zero_in_borrow_column(a, b) is bool(
+                    vector["zero_in_minuend"]
+                )
+        vector = difficulty.increment(vector, skill)
 
 
 def test_decrement_falls_back_to_the_reverse_ladder():

@@ -7,6 +7,7 @@ real-time path --- and it must stay cheap enough to run inside POST /attempts.
 from __future__ import annotations
 
 import random
+from collections.abc import Iterator
 from typing import Any
 
 Vector = dict[str, Any]
@@ -89,26 +90,47 @@ def rank(vector: Vector, skill_id: str) -> tuple[int, int, int]:
     return (vector["digits"], _band_index(vector), flags_on)
 
 
-def increment(vector: Vector, skill_id: str) -> Vector:
-    """First applicable step of the increment ladder."""
-    new = dict(vector)
-    bands = BANDS_BY_DIGITS[new["digits"]]
-    index = _band_index(new)
+def satisfiable(vector: Vector, skill_id: str) -> bool:
+    """Can this tier actually be drawn from? Some combinations describe nothing.
+
+    A one-digit subtraction cannot borrow (a >= b leaves nothing to borrow), a
+    zero to borrow across is itself a borrow, and two addends from 70-99 always
+    carry in the tens column. Asking for those yields no question at all.
+    """
+    low, _ = BAND_RANGES[vector["magnitude"]]
+
+    if skill_id == ADDITION:
+        # The lowest pair in the band is the one least likely to carry.
+        return bool(vector.get("carries")) or not _has_carry(low, low)
+
+    if vector.get("zero_in_minuend") and not vector.get("borrows"):
+        return False
+    wants_borrow = vector.get("borrows") or vector.get("zero_in_minuend")
+    return not (wants_borrow and vector["digits"] < 2)
+
+
+def _ladder(vector: Vector, skill_id: str) -> Iterator[Vector]:
+    """Harder tiers in ascending order: band, then flags, then a digit."""
+    bands = BANDS_BY_DIGITS[vector["digits"]]
+    index = _band_index(vector)
 
     if index < len(bands) - 1:
-        new["magnitude"] = bands[index + 1]
-        return new
+        yield {**vector, "magnitude": bands[index + 1]}
 
     for flag in _flags_for(skill_id):
-        if not new.get(flag):
-            new[flag] = True
-            return new
+        if not vector.get(flag):
+            yield {**vector, flag: True}
 
-    if new["digits"] < MAX_DIGITS:
-        new = base_vector(new["digits"] + 1)
-        return new
+    if vector["digits"] < MAX_DIGITS:
+        yield base_vector(vector["digits"] + 1)
 
-    return new  # already at the ceiling
+
+def increment(vector: Vector, skill_id: str) -> Vector:
+    """First step of the ladder that describes a question we can actually pose."""
+    for candidate in _ladder(vector, skill_id):
+        if satisfiable(candidate, skill_id):
+            return candidate
+    return dict(vector)  # already at the ceiling
 
 
 def decrement(vector: Vector, skill_id: str, axis: str | None = None) -> Vector:
@@ -117,6 +139,8 @@ def decrement(vector: Vector, skill_id: str, axis: str | None = None) -> Vector:
 
     if axis in _flags_for(skill_id) and new.get(axis):
         new[axis] = False
+        if axis == "borrows":
+            new["zero_in_minuend"] = False  # a zero to borrow across is a borrow
         return new
 
     if axis == "digits" and new["digits"] > 1:
