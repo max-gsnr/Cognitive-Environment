@@ -141,6 +141,8 @@ const ORBIT_CONFIG = {
   number_line_max: 20,
   representation: "symbolic",  // "symbolic" | "dots"
   scaffold_on_error: "decompose", // "none" | "reveal" | "decompose"
+  scaffold_carryover: 2,       // supported items granted per error, per skill
+  scaffold_fade_on_success: 1, // support removed per supported item answered right
   error_cooldown_ms: 1200,     // non-punitive pause; NOT a penalty timer
   reward_cadence: 3,           // celebrate every N landings
   hint_cost: 0.5,              // credit retained for a hinted item
@@ -228,6 +230,10 @@ const state = {
   hintedThisItem: false,
   cooling: false,
   over: false,
+  autoScaffold: false,  // support carried in from an earlier error on this skill
+  scaffoldDebt: {},     // skill id -> supported items still owed
+  worked: null,         // worked decomposition drawn on the line
+
   solved: 0,
   attempts: 0,
   recent: [],           // running correctness window for the ladder
@@ -261,6 +267,31 @@ function chooseSkill() {
   return SKILLS[ladderIndex];
 }
 
+// Worked decomposition of an item: the hops a child can actually walk on the
+// line. Addition goes through ten when it crosses it, subtraction comes back to
+// ten first; otherwise it is a single hop from the first addend.
+function decompose(item) {
+  const steps = [];
+  if (item.op === "+") {
+    const toTen = 10 - item.a;
+    if (toTen > 0 && toTen < item.b) {
+      steps.push({ from: item.a, to: 10, label: `+${toTen}` });
+      steps.push({ from: 10, to: item.answer, label: `+${item.b - toTen}` });
+    } else {
+      steps.push({ from: item.a, to: item.answer, label: `+${item.b}` });
+    }
+  } else {
+    const downToTen = item.a - 10;
+    if (item.a > 10 && downToTen > 0 && downToTen < item.b) {
+      steps.push({ from: item.a, to: 10, label: `−${downToTen}` });
+      steps.push({ from: 10, to: item.answer, label: `−${item.b - downToTen}` });
+    } else {
+      steps.push({ from: item.a, to: item.answer, label: `−${item.b}` });
+    }
+  }
+  return { steps, text: steps.map((s) => `${s.from} ${s.label} → ${s.to}`).join("  ·  ") };
+}
+
 function nextItem() {
   if (state.over) return;
   if (elapsed() >= cfg.session_ms || state.attempts >= cfg.max_problems) return finish("time");
@@ -269,11 +300,18 @@ function nextItem() {
   state.item = Object.assign({ skill: skill.id, difficulty: skill.difficulty }, item);
   state.shownAt = Date.now();
   state.awaiting = true;
-  state.hintVisible = false;
   state.hintedThisItem = false;
+  // Support earned by an earlier error on this skill stays up for the next few
+  // items and fades as the learner succeeds: the structure is on screen while it
+  // is still needed, and the item keeps its full difficulty either way.
+  state.autoScaffold = (state.scaffoldDebt[skill.id] || 0) > 0;
+  state.hintVisible = state.autoScaffold;
+  state.worked = state.autoScaffold ? decompose(state.item) : null;
   state.cursor = Math.round(cfg.number_line_max / 2);
   el.hint.disabled = false;
   el.land.disabled = false;
+  if (state.autoScaffold) say(`Walk it: ${state.worked.text.replace(/→ \d+$/, "→ ?")}`, "teach");
+  else say("", "");
   render();
   emit("problem_shown", {
     skill: skill.id,
@@ -302,17 +340,24 @@ function submit(value, via) {
     correct,
     latency_ms: latency,
     hinted: state.hintedThisItem,
+    scaffolded: state.hintVisible,
+    support_level: state.scaffoldDebt[item.skill] || 0,
     via,
     credit: correct ? (state.hintedThisItem ? cfg.hint_cost : 1) : 0,
   });
 
   if (correct) {
+    if (state.autoScaffold) {
+      state.scaffoldDebt[item.skill] = Math.max(
+        0, (state.scaffoldDebt[item.skill] || 0) - cfg.scaffold_fade_on_success);
+    }
     state.solved += 1;
     state.celebrate = ++rewardCounter % cfg.reward_cadence === 0 ? 1 : 0.35;
     say(state.celebrate === 1 ? "Orbit locked. Fuel bonus!" : "Landed.", "good");
     render();
     setTimeout(nextItem, 500);
   } else {
+    state.scaffoldDebt[item.skill] = cfg.scaffold_carryover;
     state.cooling = true;
     teach(item);
     setTimeout(() => { state.cooling = false; nextItem(); }, cfg.error_cooldown_ms);
@@ -325,9 +370,10 @@ let rewardCounter = 0;
 function teach(item) {
   if (cfg.scaffold_on_error === "none") { say("Not this one — next launch.", "teach"); render(); return; }
   let text = `${item.a} ${item.op} ${item.b} = ${item.answer}`;
-  if (cfg.scaffold_on_error === "decompose" && item.op === "+") {
-    const toTen = 10 - item.a;
-    if (toTen > 0 && toTen < item.b) text += `  ·  ${item.a} + ${toTen} = 10, then 10 + ${item.b - toTen}`;
+  if (cfg.scaffold_on_error === "decompose") {
+    const worked = decompose(item);
+    state.worked = worked;
+    text = `${item.a} ${item.op} ${item.b}:  ${worked.text}`;
   }
   say(text, "teach");
   state.hintVisible = true;
@@ -374,6 +420,7 @@ el.hint.addEventListener("click", () => {
   if (!state.awaiting || state.over) return;
   state.hintVisible = true;
   state.hintedThisItem = true;
+  state.worked = decompose(state.item);
   state.lastInputAt = Date.now();
   emit("hint_requested", { skill: state.item.skill, latency_ms: Date.now() - state.shownAt });
   render();
@@ -461,6 +508,31 @@ function render() {
     dots(state.item.a, at(0) + 8, lineY + 52, 10);
     dots(state.item.b, at(cfg.number_line_max) - 90, lineY + 52, 10);
     ctx.globalAlpha = 1;
+    // The worked hops, drawn where the arithmetic happens. The final landing
+    // point is left off while the learner is still answering, so the support
+    // shows the method rather than the result.
+    if (state.worked) {
+      const steps = state.worked.steps;
+      ctx.lineWidth = 2;
+      ctx.font = "13px system-ui";
+      steps.forEach((step, index) => {
+        const last = index === steps.length - 1;
+        if (last && state.awaiting) return;
+        const x0 = at(step.from), x1 = at(step.to), mid = (x0 + x1) / 2;
+        ctx.strokeStyle = "rgba(255, 200, 87, .8)";
+        ctx.beginPath();
+        ctx.moveTo(x0, lineY - 4);
+        ctx.quadraticCurveTo(mid, lineY - 40, x1, lineY - 4);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255, 200, 87, .95)";
+        ctx.fillText(step.label, mid, lineY - 26);
+      });
+      const start = steps[0].from;
+      ctx.strokeStyle = "rgba(127, 233, 255, .8)";
+      ctx.beginPath(); ctx.moveTo(at(start), lineY - 14); ctx.lineTo(at(start), lineY + 14); ctx.stroke();
+      ctx.fillStyle = "rgba(127, 233, 255, .9)";
+      ctx.fillText(String(start), at(start), lineY - 20);
+    }
     if (!state.awaiting) {
       ctx.strokeStyle = "#57d9a3"; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(at(state.item.answer), lineY - 26); ctx.lineTo(at(state.item.answer), lineY + 26); ctx.stroke();
@@ -497,6 +569,8 @@ window.orbit = {
       cursor: state.cursor,
       number_line_max: cfg.number_line_max,
       hint_visible: state.hintVisible,
+      scaffolded: state.hintVisible,
+      support_level: (state.item && state.scaffoldDebt[state.item.skill]) || 0,
       representation: cfg.representation,
       problem: state.item && !state.over
         ? { a: state.item.a, b: state.item.b, op: state.item.op, skill: state.item.skill, difficulty: state.item.difficulty }
