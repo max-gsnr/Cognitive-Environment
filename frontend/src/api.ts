@@ -1,15 +1,31 @@
+import { handleClientFallback } from "./fallbackData";
+
 const BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || `${response.status} ${response.statusText}`);
+  try {
+    const response = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    });
+
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (response.ok && contentType.includes("application/json")) {
+      return (await response.json()) as T;
+    }
+
+    const text = await response.text();
+    // If backend returns HTML (e.g. Vercel SPA rewrite fallback or 404), use client fallback
+    if (text.trim().startsWith("<!doctype") || text.trim().startsWith("<html") || !response.ok) {
+      return handleClientFallback<T>(path, init);
+    }
+
+    return JSON.parse(text) as T;
+  } catch (_err) {
+    // Network or parse error: gracefully fall back to client state
+    return handleClientFallback<T>(path, init);
   }
-  return (await response.json()) as T;
 }
 
 export const api = {
