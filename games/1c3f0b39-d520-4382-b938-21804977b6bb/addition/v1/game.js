@@ -35,8 +35,11 @@
     answered: 0,
     running: false,
     busy: false,
+    retryTimer: null,
+    retryInFlight: false,
   };
 
+  const QUESTION_RETRY_MS = 400;
   const api = (path) => C.API_BASE + path;
 
   async function getJSON(path) {
@@ -90,6 +93,49 @@
     el.feedback.textContent = "";
   }
 
+  function clearQuestion() {
+    state.question = null;
+    state.shownAt = 0;
+    el.problem.textContent = "";
+    el.pods.hidden = true;
+    el.podLeft.textContent = "";
+    el.podRight.textContent = "";
+    el.podOp.textContent = "";
+    el.answer.value = "";
+    el.submit.disabled = true;
+  }
+
+  function cancelRetry() {
+    if (state.retryTimer !== null) {
+      window.clearTimeout(state.retryTimer);
+      state.retryTimer = null;
+    }
+  }
+
+  function scheduleRetry() {
+    if (
+      state.retryTimer !== null ||
+      state.retryInFlight ||
+      !state.running ||
+      state.question
+    ) {
+      return;
+    }
+    state.retryTimer = window.setTimeout(async () => {
+      state.retryTimer = null;
+      if (!state.running || state.question) return;
+      state.retryInFlight = true;
+      try {
+        await loadQuestion();
+      } catch (err) {
+        showFeedback("Taking a moment…", true);
+      } finally {
+        state.retryInFlight = false;
+        if (state.running && !state.question) scheduleRetry();
+      }
+    }, QUESTION_RETRY_MS);
+  }
+
   // A single soft blip. Audio constraints: no music, UI sounds only.
   let audioCtx = null;
   function blip(freq) {
@@ -134,6 +180,7 @@
     el.problem.textContent = a + " " + question.operator + " " + b;
     el.answer.value = "";
     el.answer.focus();
+    el.submit.disabled = false;
     state.shownAt = performance.now();
     T.markActive();
     T.capture("problem_shown", {});
@@ -181,11 +228,15 @@
       finish();
       return;
     }
+    if (state.retryInFlight) return;
+    cancelRetry();
+    clearQuestion();
     clearFeedback();
     try {
       await loadQuestion();
     } catch (err) {
       showFeedback("Taking a moment…", true);
+      scheduleRetry();
     }
   }
 
@@ -199,6 +250,7 @@
   }
 
   async function startLevel() {
+    cancelRetry();
     state.answered = 0;
     state.running = true;
     abandonReported = false;
@@ -223,7 +275,7 @@
 
   el.form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (state.busy || !state.running) return;
+    if (state.busy || !state.running || !state.question) return;
     const raw = el.answer.value.trim();
     if (!/^\d{1,4}$/.test(raw)) {
       el.answer.focus();
@@ -239,7 +291,7 @@
       showFeedback("Taking a moment…", true);
     } finally {
       state.busy = false;
-      el.submit.disabled = false;
+      el.submit.disabled = !state.question;
       if (state.running) el.answer.focus();
     }
   });
