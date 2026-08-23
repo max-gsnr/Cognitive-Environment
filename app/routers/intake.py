@@ -190,6 +190,5 @@ def _seed_mastery(session: Session, profile: ChildProfile) -> None:
                 profile_id=profile.id,
                 skill_id=skill_id,
                 difficulty_vector=floor,
-                decrement_credit=0.0,
             )
         )

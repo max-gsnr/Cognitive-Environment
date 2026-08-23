@@ -11,7 +11,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app import audit, difficulty
+from app import audit, difficulty, error_taxonomy
 from app.config import settings
 from app.db import get_session
 from app.models import Attempt, ChildProfile, Game, SubjectMastery
@@ -86,6 +86,11 @@ def seed_posthog_events(session: Session, game_id: str) -> int:
 # anything). Without this the demo's "correct but slow" beat never fires.
 HISTORY_ATTEMPTS = 30
 HISTORY_LATENCY_MS = 4200
+# The history is also ability evidence now, so a flawless past would hand the
+# demo child a rating well above the tier intake placed them at and open the
+# session two rungs up. Every fifth answer is an off-by-one instead, which is
+# the target success rate the policy aims at: the rating lands where it started.
+HISTORY_SLIP_EVERY = 5
 
 
 @router.post("/demo/seed-history")
@@ -107,7 +112,9 @@ def seed_history(
 
     for index in range(HISTORY_ATTEMPTS):
         question = difficulty.next_question(vector, body.skill_id, rng)
-        answer = question["correct_answer"]
+        correct_answer = question["correct_answer"]
+        slipped = index % HISTORY_SLIP_EVERY == 0
+        answer = correct_answer + 1 if slipped else correct_answer
         session.add(
             Attempt(
                 profile_id=body.profile_id,
@@ -115,9 +122,11 @@ def seed_history(
                 operands=question["operands"],
                 operator=question["operator"],
                 answer_given=answer,
-                correct_answer=answer,
-                is_correct=True,
-                error_class="correct",
+                correct_answer=correct_answer,
+                is_correct=not slipped,
+                error_class=error_taxonomy.classify_attempt(
+                    question["operands"], question["operator"], answer
+                ),
                 difficulty_vector_snapshot=vector,
                 tier_key=tier,
                 latency_to_submit_ms=HISTORY_LATENCY_MS + rng.randint(-600, 600),
@@ -135,6 +144,7 @@ def seed_history(
             "profile_id": body.profile_id,
             "skill_id": body.skill_id,
             "attempts": HISTORY_ATTEMPTS,
+            "slips": HISTORY_ATTEMPTS // HISTORY_SLIP_EVERY,
             "tier_key": tier,
         },
     )
