@@ -1434,35 +1434,94 @@ export class OpenGameArena {
     const ctx = this.ctx;
     const w = this.canvas.width;
     ctx.save();
-    ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-    ctx.lineWidth = 1.5;
+
+    // 16-Bit Arcade Question Header Plaque (Top Center)
+    const plaqueW = 460;
+    const plaqueH = 68;
+    const plaqueX = w / 2 - plaqueW / 2;
+    const plaqueY = 12;
+
+    // Drop shadow
+    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
     ctx.beginPath();
-    ctx.roundRect(w / 2 - 190, 12, 380, 42, 21);
+    ctx.roundRect(plaqueX + 4, plaqueY + 4, plaqueW, plaqueH, 10);
+    ctx.fill();
+
+    // Plaque background & gold border
+    ctx.fillStyle = "#0f172a";
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.roundRect(plaqueX, plaqueY, plaqueW, plaqueH, 10);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 15px system-ui, -apple-system, sans-serif";
+
+    // Inner highlight border
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(plaqueX + 3, plaqueY + 3, plaqueW - 6, plaqueH - 6, 8);
+    ctx.stroke();
+
+    // Top row: Theme name & question progress
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "bold 11px 'Press Start 2P', monospace, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`${this.theme.name} • Question ${Math.min(this.sessionLength, this.answeredCount + 1)} / ${this.sessionLength}`, w / 2, 38);
+    ctx.fillText(
+      `${this.theme.name.toUpperCase()} • Q${Math.min(this.sessionLength, this.answeredCount + 1)}/${this.sessionLength}`,
+      w / 2,
+      plaqueY + 22
+    );
+
+    // Main Math Equation (High Contrast Gold & White)
+    if (this.currentQuestion) {
+      const a = this.currentQuestion.operands[0];
+      const b = this.currentQuestion.operands[1];
+      const op = this.currentQuestion.operator;
+      ctx.fillStyle = "#facc15";
+      ctx.font = "bold 22px 'Press Start 2P', monospace, sans-serif";
+      ctx.shadowColor = "rgba(250, 204, 21, 0.75)";
+      ctx.shadowBlur = 8;
+      ctx.fillText(`${a} ${op} ${b} = ?`, w / 2, plaqueY + 54);
+      ctx.shadowBlur = 0;
+    } else {
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 13px 'Press Start 2P', monospace, sans-serif";
+      ctx.fillText("LOADING QUESTION...", w / 2, plaqueY + 52);
+    }
+
+    // Feedback message toast (Rendered directly beneath plaque)
     if (this.feedbackMessage) {
-      ctx.font = "bold 16px system-ui, sans-serif";
-      ctx.fillStyle = this.feedbackIsGentle ? "#fbbf24" : "#4ade80";
-      ctx.fillText(this.feedbackMessage, w / 2, 85);
+      ctx.font = "bold 13px 'Press Start 2P', monospace, sans-serif";
+      const msgW = Math.min(520, ctx.measureText(this.feedbackMessage).width + 48);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
+      ctx.strokeStyle = this.feedbackIsGentle ? "#f59e0b" : "#22c55e";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.roundRect(w / 2 - msgW / 2, plaqueY + plaqueH + 8, msgW, 36, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = this.feedbackIsGentle ? "#fde047" : "#4ade80";
+      ctx.textAlign = "center";
+      ctx.fillText(this.feedbackMessage, w / 2, plaqueY + plaqueH + 30);
     }
 
     if (this.state === "VICTORY") {
       ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
       ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-      ctx.fillStyle = "#4ade80";
-      ctx.font = "bold 34px system-ui, sans-serif";
+      ctx.fillStyle = "#facc15";
+      ctx.font = "bold 26px 'Press Start 2P', monospace, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("🎉 Session Complete! Awesome Job! 🎉", w / 2, 210);
+      ctx.shadowColor = "rgba(250, 204, 21, 0.8)";
+      ctx.shadowBlur = 12;
+      ctx.fillText("🎉 LEVEL CLEAR! 🎉", w / 2, 200);
+      ctx.shadowBlur = 0;
 
-      ctx.fillStyle = "#cbd5e1";
-      ctx.font = "18px system-ui, sans-serif";
-      ctx.fillText(`You completed all ${this.sessionLength} questions with high mastery.`, w / 2, 260);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "16px system-ui, sans-serif";
+      ctx.fillText(`You completed all ${this.sessionLength} questions with high mastery!`, w / 2, 255);
     }
 
     ctx.restore();
