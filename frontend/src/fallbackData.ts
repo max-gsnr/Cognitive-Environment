@@ -310,7 +310,100 @@ export function handleClientFallback<T>(path: string, init?: RequestInit): T {
     return audit as unknown as T;
   }
 
-  // 9. Session metrics & release impact
+  // 10. GET /evolution
+  if (p.endsWith("/evolution")) {
+    const evo = {
+      summary: {
+        proposed: 2,
+        shipped: 2,
+        blocked: 0,
+        in_progress: 0,
+        live_version: 2,
+        no_change_needed: 0,
+        checked: 2,
+        disagreements: 0,
+      },
+      versions: [
+        {
+          game_id: "game-leo-addition-v2",
+          version: 2,
+          label: "v2",
+          created_at: new Date().toISOString(),
+          from_version: 1,
+          state: "live",
+          state_label: "Live for this child",
+          status: "ready",
+          is_live: true,
+          trigger: {
+            available: true,
+            reason: "healthy_struggle",
+            reason_label: "Working hard, and getting there",
+            signal: "healthy_struggle",
+            signal_label: "Working hard, and getting there",
+            change_tier: "structural",
+            change_tier_label: "Structure",
+            ladder: [
+              { signal: "frustration_or_bug", label: "Frustration or a bug", matched: false, tier: "presentation", evidence: [] },
+              { signal: "healthy_struggle", label: "Working hard, and getting there", matched: true, tier: "structural", evidence: [{ metric: "Accuracy", label: "Accuracy on baseline", value: 1.0, threshold: "≥ 0.85" }] },
+            ],
+            evidence: [{ metric: "Accuracy", label: "Accuracy on baseline", value: 1.0, threshold: "≥ 0.85" }],
+          },
+          scope: {
+            tier: "structural",
+            tier_label: "Structure",
+            allowed: ["theme", "mechanics", "scaffolding", "difficulty_floor"],
+            prohibited: [],
+          },
+          provenance: {
+            source_version: 1,
+            author_type: "devin",
+            devin_session_id: "devin-session-123",
+            pr_url: "https://github.com/max-gsnr/Cognitive-Environment/pull/2",
+            requested_at: new Date(Date.now() - 3600000).toISOString(),
+            prompt: "Upgrade arithmetic difficulty floor to mid-double digits with carrying",
+            prompt_revision: "v2.1",
+          },
+          report: {
+            available: true,
+            summary: "Upgraded difficulty floor to double-digit carrying, added carry scaffolding, and tuned reward feedback for ADHD attention engagement.",
+            changes_made: [
+              "Upgraded arithmetic difficulty floor from single-digit to double-digit carrying",
+              "Added multi-digit visual scaffolding and carry animations",
+              "Tightened reward feedback pacing for ADHD engagement",
+            ],
+            before_after_diff_summary: "v1 (single-digit baseline) → v2 (mildly increased difficulty with double-digit carrying).",
+            gates: [
+              { name: "schema", label: "Questions come from our backend", passed: true, detail: "PASS" },
+              { name: "assertions", label: "The game's own tests pass", passed: true, detail: "PASS" },
+              { name: "playthrough", label: "A full level can actually be completed", passed: true, detail: "PASS" },
+              { name: "render_accessibility", label: "Readable, keyboard reachable, no fast flashing", passed: true, detail: "PASS" },
+            ],
+            all_passed: true,
+          },
+          checks: {
+            available: true,
+            all_passed: true,
+            checks: [
+              { name: "files", label: "The files it claims to have written exist", passed: true, detail: "PASS" },
+              { name: "shell_contract", label: "It asks us for questions instead of inventing them", passed: true, detail: "PASS" },
+              { name: "instrumentation", label: "Every event Loop B reads is still emitted", passed: true, detail: "PASS" },
+              { name: "no_fast_flashing", label: "Nothing flashes faster than 3Hz (WCAG 2.3.1)", passed: true, detail: "PASS" },
+              { name: "focus_visible", label: "Focus is visible for keyboard play", passed: true, detail: "PASS" },
+              { name: "playthrough", label: "We played it headless and it answered questions", passed: true, detail: "PASS" },
+            ],
+          },
+          verdict: {
+            passed: true,
+            disagreement: false,
+            headline: "Passed all independent verification gates and promoted to live build.",
+          },
+        },
+      ],
+    };
+    return evo as unknown as T;
+  }
+
+  // 11. Session metrics & release impact
   if (p.includes("session-metrics")) {
     const metrics: SessionMetrics = {
       points: [],

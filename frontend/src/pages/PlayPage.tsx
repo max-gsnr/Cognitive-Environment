@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { ProfileDetail, Question, api } from "../api";
 import { OrbitCanvas } from "../game/OrbitCanvas";
 import { getThemeForInterests } from "../game/OpenGameArena";
+import { EvolutionLog } from "../analytics/EvolutionLog";
 
 export function PlayPage() {
   const { profileId = "", skillId = "" } = useParams();
@@ -85,9 +86,9 @@ export function PlayPage() {
             type="button"
             className="evolution-badge-btn"
             onClick={() => setShowEvolutionModal(true)}
-            title="Inspect Loop B Devin autonomous evolution"
+            title="Inspect Loop B Devin autonomous evolution build log"
           >
-            ⚡ Loop B Storyboard
+            ⚡ Loop B Build Log
           </button>
 
           <div className="hud-badge">
@@ -151,100 +152,54 @@ export function PlayPage() {
         </div>
       </div>
 
-      {/* Loop B Autonomous Evolution Modal (Post-v1 Screen & Demo Storyboard) */}
+      {/* Loop B Autonomous Evolution Modal (Game Build Log Console) */}
       {showEvolutionModal && (
         <div className="evolution-modal-overlay" onClick={() => setShowEvolutionModal(false)}>
-          <div className="evolution-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="evolution-modal-header">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+          <div
+            className="evolution-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "1160px", width: "95vw", maxHeight: "90vh", overflowY: "auto" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span className="live-pill" style={{ background: "#2563eb", color: "#fff" }}>
                   ★ LOOP B: AUTONOMOUS GAME EVOLUTION
                 </span>
-                <button
-                  type="button"
-                  className="modal-close-btn"
-                  onClick={() => setShowEvolutionModal(false)}
-                >
-                  ✕
-                </button>
+                <span style={{ fontSize: "14px", color: "#64748b" }}>
+                  {detail?.profile.name}&apos;s {skillId} build history
+                </span>
               </div>
-              <h2 style={{ fontSize: "22px", margin: "10px 0 6px", color: "#0f172a" }}>
-                ✦ {detail?.profile.name || "Student"} Mastered Baseline — Devin Iteration Ready!
-              </h2>
-              <p style={{ color: "#475569", margin: "0 0 16px", fontSize: "14px" }}>
-                Telemetry from <strong>v1 (Baseline single-digit)</strong> indicated strong mastery. Orbit triggered Devin to iterate the game codebase to gently step up the arithmetic challenge.
-              </p>
-            </div>
-
-            <div className="evolution-story-grid">
-              {/* Step 1: Telemetry Signal */}
-              <div className="story-card">
-                <div className="story-step-badge">1. Telemetry Signal</div>
-                <h4 style={{ margin: "6px 0 4px", fontSize: "16px", color: "#0f172a" }}>
-                  📈 High Focus &amp; Accuracy
-                </h4>
-                <p style={{ fontSize: "13px", color: "#475569", margin: 0 }}>
-                  {detail?.profile.name || "Student"} answered baseline single-digit problems with 100% accuracy and steady kinematics (&lt;1.2× jitter).
-                </p>
-                <div className="story-metric-pill" style={{ background: "#dcfce7", color: "#166534" }}>
-                  ✓ Challenge fit: 1.00 (Ready for carry)
-                </div>
-              </div>
-
-              {/* Step 2: Devin Autonomous PR */}
-              <div className="story-card">
-                <div className="story-step-badge" style={{ background: "#3b82f6" }}>2. Devin Autonomous PR</div>
-                <h4 style={{ margin: "6px 0 4px", fontSize: "16px", color: "#0f172a" }}>
-                  🤖 Codebase Upgraded to v2
-                </h4>
-                <p style={{ fontSize: "13px", color: "#475569", margin: 0 }}>
-                  Devin added double-digit carrying, visual carry scaffolding, and tuned reward feedback for ADHD attention engagement.
-                </p>
-                <div className="story-metric-pill" style={{ background: "#dbeafe", color: "#1e40af" }}>
-                  <a
-                    href="https://github.com/max-gsnr/Cognitive-Environment/pull/2"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: "inherit", textDecoration: "underline" }}
-                  >
-                    🔗 GitHub PR #2 (Verified &amp; Merged)
-                  </a>
-                </div>
-              </div>
-
-              {/* Step 3: Independent Safety Gates */}
-              <div className="story-card">
-                <div className="story-step-badge" style={{ background: "#8b5cf6" }}>3. Safety Gates</div>
-                <h4 style={{ margin: "6px 0 4px", fontSize: "16px", color: "#0f172a" }}>
-                  🛡️ 4 / 4 Automated Checks Pass
-                </h4>
-                <ul style={{ margin: "6px 0 0", paddingLeft: "18px", fontSize: "12px", color: "#334155" }}>
-                  <li>✓ <strong>Schema</strong>: Validated arithmetic</li>
-                  <li>✓ <strong>Invariants</strong>: No negative traps</li>
-                  <li>✓ <strong>Playthrough</strong>: 100% reachable</li>
-                  <li>✓ <strong>WCAG 2.3.1</strong>: High contrast</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="evolution-modal-footer">
               <button
                 type="button"
-                className="primary launch-v2-action-btn"
-                onClick={() => {
-                  setActiveVersion(2);
-                  setShowEvolutionModal(false);
-                  setAnswered(0);
-                }}
+                className="modal-close-btn"
+                onClick={() => setShowEvolutionModal(false)}
               >
-                🚀 Play Iterated Game v2 (Mildly More Challenging) ➔
+                ✕
               </button>
+            </div>
+
+            <EvolutionLog profileId={profileId} skillId={skillId} />
+
+            <div className="evolution-modal-footer">
+              {activeVersion !== 2 && (
+                <button
+                  type="button"
+                  className="primary launch-v2-action-btn"
+                  onClick={() => {
+                    setActiveVersion(2);
+                    setShowEvolutionModal(false);
+                    setAnswered(0);
+                  }}
+                >
+                  🚀 Switch &amp; Play Iterated Game v2 ➔
+                </button>
+              )}
               <button
                 type="button"
                 className="secondary"
                 onClick={() => setShowEvolutionModal(false)}
               >
-                Stay on v1
+                Close Log
               </button>
             </div>
           </div>
