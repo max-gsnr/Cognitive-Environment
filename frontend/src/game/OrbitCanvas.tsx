@@ -71,11 +71,6 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
     };
   }, [profileId, skillId, sessionLength, selectedTheme]);
 
-  const handleThemeChange = (themeKey: string) => {
-    setSelectedTheme(themeKey);
-    gameRef.current?.setTheme(themeKey);
-  };
-
   const handleAudioToggle = () => {
     const next = !audioEnabled;
     setAudioEnabled(next);
@@ -103,22 +98,8 @@ export const OrbitCanvas: React.FC<OrbitCanvasProps> = ({
 
   return (
     <div ref={containerRef} className="orbit-game-container">
-      {/* Top Game Controls Bar */}
-      <div className="game-toolbar">
-        <div className="theme-selector">
-          <label>Star System: </label>
-          {Object.entries(THEMES).map(([key, t]) => (
-            <button
-              key={key}
-              type="button"
-              className={`pill-btn ${selectedTheme === key ? "active" : ""}`}
-              onClick={() => handleThemeChange(key)}
-            >
-              {t.name}
-            </button>
-          ))}
-        </div>
-
+      {/* Top Game Controls Bar (Distraction-Free: Sound & Fullscreen only) */}
+      <div className="game-toolbar" style={{ justifyContent: "flex-end" }}>
         <div className="toolbar-actions">
           <button
             type="button"
