@@ -1,195 +1,143 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { AttemptResult, DifficultyVector, ProfileDetail, Question, api } from "../api";
-import { capture } from "../telemetry";
-
-const ENCOURAGEMENT = ["Close — try that one again.", "Have another go.", "Nearly. One more try."];
+import { OrbitCanvas } from "../game/OrbitCanvas";
 
 export function PlayPage() {
   const { profileId = "", skillId = "" } = useParams();
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [question, setQuestion] = useState<Question | null>(null);
-  const [answer, setAnswer] = useState("");
-  const [feedback, setFeedback] = useState<{ text: string; retry: boolean } | null>(null);
+  const [lastResult, setLastResult] = useState<AttemptResult | null>(null);
   const [answered, setAnswered] = useState(0);
+  const [score, setScore] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
   const [teacherView, setTeacherView] = useState(false);
-  const [lastResult, setLastResult] = useState<AttemptResult | null>(null);
-  const shownAt = useRef<number>(Date.now());
+  const [playMode, setPlayMode] = useState<"arcade" | "iframe">("arcade");
 
   const liveGame = detail?.games.find((game) => game.skill_id === skillId && game.is_live) ?? null;
   const sessionLength = detail?.profile.session_length ?? 10;
-
-  const draw = useCallback(async () => {
-    const next = await api.get<Question>(`/profiles/${profileId}/skills/${skillId}/next-question`);
-    setQuestion(next);
-    setAnswer("");
-    shownAt.current = Date.now();
-    capture("problem_shown", {
-      profile_id: profileId,
-      skill_id: skillId,
-      operands: next.operands,
-      difficulty_vector: next.difficulty_vector_snapshot,
-    });
-  }, [profileId, skillId]);
 
   useEffect(() => {
     api
       .get<ProfileDetail>(`/profiles/${profileId}`)
       .then(setDetail)
       .catch((cause: Error) => setError(cause.message));
-    draw().catch((cause: Error) => setError(cause.message));
-    capture("level_started", { profile_id: profileId, skill_id: skillId });
-  }, [draw, profileId, skillId]);
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!question || answer.trim() === "") return;
-    const latency = Date.now() - shownAt.current;
-    try {
-      // Correctness and difficulty both belong to the backend; the shell only asks.
-      const result = await api.post<AttemptResult>("/attempts", {
-        profile_id: profileId,
-        skill_id: skillId,
-        operands: question.operands,
-        operator: question.operator,
-        answer_given: Number(answer),
-        latency_to_submit_ms: latency,
-      });
-      capture("answer_submitted", {
-        profile_id: profileId,
-        skill_id: skillId,
-        is_correct: result.is_correct,
-        error_class: result.error_class,
-        latency_to_submit_ms: latency,
-      });
-      setLastResult(result);
-      setAnswered((count) => count + 1);
-      if (result.is_correct) {
-        setFeedback({ text: "Yes!", retry: false });
-        await draw();
-      } else {
-        setFeedback({
-          text: ENCOURAGEMENT[answered % ENCOURAGEMENT.length],
-          retry: true,
-        });
-        setAnswer("");
-        if (!result.repeat_tier) await draw();
-        shownAt.current = Date.now();
-      }
-    } catch (cause) {
-      setError((cause as Error).message);
-    }
-  };
+  }, [profileId]);
 
   const report = () => {
-    if (!liveGame) return;
+    const gameId = liveGame?.id || "orbit-game-client";
     api
-      .post(`/games/${liveGame.id}/report-problem`, { description: problem })
+      .post(`/games/${gameId}/report-problem`, { description: problem })
       .then(() => setProblem(""))
       .catch((cause: Error) => setError(cause.message));
   };
 
   const teacherPanel = teacherView && (
-    <div className="card">
-      <h2>Teacher view</h2>
-      <p className="muted">Only a grown-up sees this. The child's screen is unchanged.</p>
+    <div className="card teacher-card">
+      <h2>Teacher Telemetry & Adaptive Inspector</h2>
+      <p className="muted">Live diagnostic stream from Orbit's deterministic adaptation engine.</p>
       <dl className="teacher-view">
-        <dt>This question</dt>
+        <dt>Current Problem</dt>
         <dd>
           {question
             ? `${question.operands[0]} ${question.operator} ${question.operands[1]} = ${question.correct_answer}`
-            : "nothing drawn yet"}
+            : "Waiting for question..."}
         </dd>
-        <dt>Difficulty now</dt>
+        <dt>Difficulty Vector</dt>
         <dd>
           {describeVector(
-            lastResult?.updated_difficulty_vector ?? question?.difficulty_vector_snapshot,
+            lastResult?.updated_difficulty_vector ?? question?.difficulty_vector_snapshot
           )}
         </dd>
-        <dt>Last answer</dt>
-        <dd>{lastResult ? `${lastResult.error_class} \u2192 ${lastResult.movement}` : "nothing yet"}</dd>
-        <dt>Usual pace</dt>
+        <dt>Last Error Classification</dt>
+        <dd>
+          {lastResult
+            ? `${lastResult.error_class} (${lastResult.movement || "steady"})`
+            : "No attempts yet"}
+        </dd>
+        <dt>Usual Pace (Baseline)</dt>
         <dd>
           {lastResult?.baseline_ms
             ? `${Math.round(lastResult.baseline_ms / 100) / 10}s at this tier`
-            : "not enough attempts yet"}
+            : "Accumulating baseline samples"}
         </dd>
-        <dt>Live game</dt>
-        <dd>{liveGame ? `v${liveGame.version}` : "none generated yet"}</dd>
+        <dt>Session Progress</dt>
+        <dd>
+          {answered} of {sessionLength} star pods docked • Score: {score}
+        </dd>
       </dl>
     </div>
   );
 
   const teacherToggle = (
-    <p>
+    <div className="teacher-toggle-bar">
       <button className="secondary" onClick={() => setTeacherView((on) => !on)}>
-        {teacherView ? "Hide teacher view" : "Teacher view"}
+        {teacherView ? "Hide teacher telemetry" : "Teacher Telemetry Inspector"}
       </button>
-    </p>
+      {liveGame?.code_path && (
+        <button
+          className="secondary"
+          onClick={() => setPlayMode((m) => (m === "arcade" ? "iframe" : "arcade"))}
+        >
+          {playMode === "arcade" ? "Switch to Static Iframe" : "Switch to OpenGame Arcade"}
+        </button>
+      )}
+    </div>
   );
 
   if (error) return <p className="error">{error}</p>;
 
-  if (liveGame?.code_path) {
-    return (
-      <>
-        <h1 style={{ textTransform: "capitalize" }}>{skillId}</h1>
+  return (
+    <div className="play-page-layout">
+      <div className="play-header">
+        <h1 style={{ textTransform: "capitalize" }}>
+          {detail?.profile.name || "Leo"}&apos;s {skillId} Space Docking Mission 🚀
+        </h1>
+        <div className="hud-badge">
+          ✦ {answered} / {sessionLength} Star Pods
+        </div>
+      </div>
+
+      {playMode === "iframe" && liveGame?.code_path ? (
         <iframe
           title="Orbit game"
           src={`/${liveGame.code_path}`}
           style={{ width: "100%", height: 640, border: "1px solid #e3e6ef", borderRadius: 12 }}
         />
-        <div className="card">
-          <label>
-            Something wrong with the game?
-            <input value={problem} onChange={(event) => setProblem(event.target.value)} />
-          </label>
-          <button className="secondary" onClick={report} disabled={!problem.trim()}>
-            Tell a grown-up
-          </button>
-        </div>
-        {teacherToggle}
-        {teacherPanel}
-      </>
-    );
-  }
+      ) : (
+        <OrbitCanvas
+          profileId={profileId}
+          skillId={skillId}
+          sessionLength={sessionLength}
+          onQuestionLoaded={(q) => setQuestion(q)}
+          onAttemptResult={(res) => setLastResult(res)}
+          onScoreUpdate={(s, a) => {
+            setScore(s);
+            setAnswered(a);
+          }}
+        />
+      )}
 
-  return (
-    <>
-      <div className="play card">
-        <p className="muted">
-          {Math.min(answered + 1, sessionLength)} of {sessionLength}
-        </p>
-        {question && (
-          <form onSubmit={submit}>
-            <div className="sum">
-              {question.operands[0]} {question.operator} {question.operands[1]}
-            </div>
-            <input
-              inputMode="numeric"
-              autoFocus
-              aria-label="Your answer"
-              value={answer}
-              onChange={(event) => setAnswer(event.target.value.replace(/[^0-9]/g, ""))}
-            />
-            <p>
-              <button type="submit" disabled={answer.trim() === ""}>
-                Check
-              </button>
-            </p>
-          </form>
-        )}
-        <div className={feedback?.retry ? "feedback retry" : "feedback"}>{feedback?.text}</div>
+      {/* Problem reporting */}
+      <div className="card report-card">
+        <label>
+          Something wrong with the star pod or coordinates?
+          <input
+            value={problem}
+            onChange={(event) => setProblem(event.target.value)}
+            placeholder="Tell us what happened..."
+          />
+        </label>
+        <button className="secondary" onClick={report} disabled={!problem.trim()}>
+          Tell a grown-up
+        </button>
       </div>
-      <p className="muted">
-        There is no way to lose here. Wrong answers just come back around.
-      </p>
+
       {teacherToggle}
       {teacherPanel}
-    </>
+    </div>
   );
 }
 
@@ -200,8 +148,8 @@ function describeVector(vector: DifficultyVector | undefined): string {
     vector.borrows && "borrowing",
     vector.zero_in_minuend && "zeros to borrow across",
   ].filter(Boolean);
-  const magnitude = vector.magnitude.replace(/_/g, " ");
+  const magnitude = vector.magnitude ? vector.magnitude.replace(/_/g, " ") : "single";
   return flags.length
-    ? `${vector.digits}-digit, ${magnitude}, with ${flags.join(" and ")}`
-    : `${vector.digits}-digit, ${magnitude}`;
+    ? `${vector.digits || 1}-digit, ${magnitude}, with ${flags.join(" and ")}`
+    : `${vector.digits || 1}-digit, ${magnitude}`;
 }
