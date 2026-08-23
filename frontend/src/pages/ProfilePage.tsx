@@ -58,11 +58,7 @@ export function ProfilePage() {
     }
   };
 
-  const seedHistory = (skillId: string) =>
-    api
-      .post("/demo/seed-history", { profile_id: profileId, skill_id: skillId })
-      .then(load)
-      .catch((cause: Error) => setError(cause.message));
+
 
   const seedReleaseImpact = (skillId: string) =>
     api
@@ -119,9 +115,6 @@ export function ProfilePage() {
                 <Link to={`/profiles/${profile.id}/generate/${row.skill_id}`}>
                   <button>Generate a game 🛠️</button>
                 </Link>
-                <button className="secondary" onClick={() => seedHistory(row.skill_id)}>
-                  Seed practice history (demo)
-                </button>
               </div>
             </div>
           ))}

@@ -14,7 +14,7 @@
  *   3. Motion is opt-out and never load-bearing; nothing animates that a reader
  *      has to watch to understand, and prefers-reduced-motion removes it.
  */
-import { ReactNode, useState } from "react";
+import { ReactNode } from "react";
 
 type FigureProps = {
   title: string;
@@ -27,24 +27,14 @@ type FigureProps = {
 };
 
 export function Figure({ title, why, summary, children, legend }: FigureProps) {
-  const [showData, setShowData] = useState(false);
   return (
     <figure className="chart">
       <div className="chart-head">
         <h3>{title}</h3>
-        <button
-          type="button"
-          className="chart-alt"
-          aria-expanded={showData}
-          onClick={() => setShowData((on) => !on)}
-        >
-          {showData ? "Hide numbers" : "Read as text"}
-        </button>
       </div>
       <p className="chart-why">{why}</p>
       {children}
       {legend && <div className="chart-legend">{legend}</div>}
-      {showData && <p className="chart-summary">{summary}</p>}
       <figcaption className="visually-hidden">{summary}</figcaption>
     </figure>
   );

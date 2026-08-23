@@ -96,19 +96,20 @@ export function IntakePage() {
     const answerText = customAnswer.trim() || selectedChoice.trim();
     if (!answerText) return;
 
+    const currentCount = questionCount;
     void guard(async () => {
       const next = await api.post<Turn>(`/intake/${turn.intake_id}/answer`, {
         answer: answerText,
       });
 
-      setTurn(next);
       setSelectedChoice("");
       setCustomAnswer("");
 
-      if (next.complete || questionCount >= 4) {
+      if (next.complete || currentCount >= 4) {
         setStage("complete");
       } else {
-        setQuestionCount((c) => c + 1);
+        setTurn(next);
+        setQuestionCount(currentCount + 1);
       }
     });
   };
