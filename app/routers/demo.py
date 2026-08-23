@@ -218,7 +218,8 @@ def seed_release_impact(
                         difficulty_vector_snapshot=vector,
                         tier_key=tier,
                         latency_to_submit_ms=latency + rng.randint(-300, 300),
-                        focus_score=round(focus + rng.uniform(-0.05, 0.05), 2),
+                        # Out of 100, the scale the live game posts.
+                        focus_score=round(focus * 100 + rng.uniform(-5, 5), 2),
                         idle_time_ms=int(latency * (1.4 - focus)),
                         game_version=int(block["version"]),
                         is_synthetic=True,
