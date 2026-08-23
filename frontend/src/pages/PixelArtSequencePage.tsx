@@ -6,7 +6,7 @@ export function PixelArtSequencePage() {
     <div style={{ width: "100%", background: "#09090b", minHeight: "100vh" }}>
       {/* Pinned ScrollTrigger Canvas Section */}
       <PixelArtCanvasSequence
-        frameCount={146}
+        frameCount={58}
         getFrameUrl={(i) => `/sequence/frame_${String(i + 1).padStart(4, "0")}.jpg`}
         scrollDistance="+=400%"
         title="Pixel Art Animation Sequence"
