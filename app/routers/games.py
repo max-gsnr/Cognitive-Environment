@@ -133,6 +133,7 @@ async def generate_game(
         profile_id=body.profile_id,
         top_interest=(profile.interests or ["outer space"])[0],
         game_id=game.id,
+        version=version,
         posthog_project_key=settings.posthog_project_api_key,
         posthog_host=settings.posthog_host,
         session_length=profile.session_length,
