@@ -1,0 +1,84 @@
+window.ORBIT = {
+  API_BASE: (
+    new URLSearchParams(window.location.search).get("api") ||
+    window.ORBIT_API_BASE ||
+    ""
+  ).replace(/\/$/, ""),
+  GAME_ID: "984d9372-a5c2-4187-9155-acd0350c883a",
+  PROFILE_ID: "1c3f0b39-d520-4382-b938-21804977b6bb",
+  SKILL_ID: "addition",
+  VERSION: 4,
+  SESSION_LENGTH: 10,
+  POSTHOG_KEY: "phc_zQYVxHgoH7FV7RZGhVQRNcsWpVA6mRAgh2UvW9dW25tc",
+  POSTHOG_HOST: "https://eu.i.posthog.com",
+  CONSTRAINTS: {
+    visual: {
+      color_palette: "pastel_muted",
+      animations: "minimal_no_screen_shake",
+      particle_effects: false,
+    },
+    audio: { music: false, sfx: "ui_only" },
+    cognitive: {
+      timer: "disabled",
+      ui_clutter: "single_focal_point",
+      level_length: "micro",
+      reward_frequency: "instant_per_action",
+    },
+    emotional: {
+      error_feedback: "gentle_no_red_x",
+      fail_state: "impossible_to_lose",
+    },
+  },
+  PALETTE: {
+    ink: "#f4f6ff",
+    dim: "#aab3dd",
+    panel: "rgba(22, 26, 46, .82)",
+    edge: "#3c4570",
+    accent: "#9fb6f0",
+    good: "#bfe3c8",
+    warm: "#f2d9b0",
+    spaceFar: "#161a2e",
+    spaceNear: "#252b54",
+  },
+  TUNING: {
+    loop: {
+      logicalWidth: 960,
+      logicalHeight: 600,
+      stepMs: 16.6667,
+      maxCatchUpSteps: 4,
+    },
+    actor: {
+      followLerp: 0.08,
+      maxSpeedPxPerSec: 420,
+      headingLerp: 0.12,
+      bobAmplitudePx: 4,
+      bobPeriodMs: 3200,
+      edgePaddingPx: 48,
+    },
+    stars: {
+      far: { count: 60, radius: 0.8, alpha: 0.25, driftPxPerSec: 6 },
+      mid: { count: 28, radius: 1.2, alpha: 0.35, driftPxPerSec: 14 },
+      near: { count: 12, radius: 1.8, alpha: 0.4, driftPxPerSec: 26 },
+    },
+    dock: {
+      podTravelMs: 520,
+      padBreatheMs: 900,
+      padAlphaMin: 0.18,
+      padAlphaMax: 0.3,
+    },
+    feedback: { floatRisePx: 42, floatMs: 900, holdMs: 1200 },
+    intro: { typewriterMsPerChar: 28 },
+    audio: {
+      tapHz: 660,
+      tapMs: 60,
+      chordHz: [523, 659, 784],
+      chordMs: 220,
+      settleHz: 196,
+      settleMs: 260,
+      gain: 0.05,
+    },
+    hud: { dotRadiusPx: 7, dotGapPx: 18 },
+    net: { requestTimeoutMs: 8000 },
+    idle: { tickMs: 5000 },
+  },
+};
