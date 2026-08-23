@@ -116,3 +116,10 @@ python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/ruff check .
 cd frontend && npm run build
 ```
+
+`scripts/dbview/server.py` serves a read-only page on
+[127.0.0.1:8899](http://127.0.0.1:8899) that polls `orbit.db` every second: the
+difficulty vector Loop A is holding, and each attempt with its error class and the
+motor/attention telemetry (`focus_score`, `cursor_velocity_px_s`, `jitter_ratio`,
+`idle_time_ms`, `distraction_events`). Rows flash as they are written, so it reads
+as an explanation of the adaptation while a child plays beside it.
