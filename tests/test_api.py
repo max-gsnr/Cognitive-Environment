@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app import difficulty
+from app import difficulty, mistake_graph
 from app.db import SessionLocal, init_db
 from app.main import app
 from app.models import (
@@ -12,6 +12,7 @@ from app.models import (
     ChildProfile,
     Game,
     IntakeSession,
+    MistakeAnalysis,
     ReportedProblem,
     SubjectMastery,
 )
@@ -582,6 +583,143 @@ def test_session_complete_starts_then_feeds_the_in_flight_iteration(
     with SessionLocal() as session:
         successors = session.query(Game).filter(Game.status == "iterating").all()
         assert len(successors) == 1
+
+
+def _mistake(profile_id, error_class, days_ago, operands=(52, 27), answer=35):
+    return Attempt(
+        profile_id=profile_id,
+        skill_id="subtraction",
+        operands=list(operands),
+        operator="-",
+        answer_given=answer,
+        correct_answer=operands[0] - operands[1],
+        is_correct=False,
+        error_class=error_class,
+        difficulty_vector_snapshot={},
+        tier_key="double_digit",
+        latency_to_submit_ms=4000,
+        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days_ago),
+    )
+
+
+def test_the_mistake_network_links_classes_and_profiles_past_vs_current(profile):
+    """Similar mistakes link into one network: same-family classes get edges,
+    and the fold-up separates the child's past mistakes from current ones."""
+    with SessionLocal() as session:
+        session.query(Attempt).delete()
+        session.add_all(
+            [
+                # borrow_omitted: past and current -> persistent
+                _mistake(profile, "borrow_omitted", days_ago=20),
+                _mistake(profile, "borrow_omitted", days_ago=1),
+                # carry_omitted: same family, only in the past -> resolved
+                _mistake(profile, "carry_omitted", days_ago=20),
+                # counting_slip: only current -> emerging
+                _mistake(profile, "counting_slip", days_ago=1),
+                _mistake(profile, "counting_slip", days_ago=2),
+            ]
+        )
+        session.commit()
+        attempts = (
+            session.query(Attempt).order_by(Attempt.created_at, Attempt.id).all()
+        )
+        graph = mistake_graph.build_graph(attempts)
+
+    trends = {n["error_class"]: n["trend"] for n in graph["nodes"]}
+    assert trends == {
+        "borrow_omitted": "persistent",
+        "carry_omitted": "resolved",
+        "counting_slip": "emerging",
+    }
+    assert graph["profile"]["persistent"] == ["borrow_omitted"]
+    assert graph["profile"]["emerging"] == ["counting_slip"]
+    assert graph["profile"]["resolved"] == ["carry_omitted"]
+    assert graph["profile"]["dominant_current"] == "counting_slip"
+
+    # borrow_omitted and carry_omitted share the regrouping family, and they
+    # co-occurred on the same day 20 days ago -- their link carries both.
+    family_edge = next(
+        e
+        for e in graph["edges"]
+        if set(e["between"]) == {"borrow_omitted", "carry_omitted"}
+    )
+    assert family_edge["same_family"] is True
+    assert family_edge["co_occurrences"] == 1
+
+
+def test_session_complete_also_runs_the_mistake_analysis_agent(
+    client, profile, monkeypatch
+):
+    """Each play session runs two agents side by side: one builds the next
+    game, the other reads the mistake network. A second play updates both."""
+    created_sessions = []
+
+    async def created(**kwargs):
+        created_sessions.append(kwargs)
+        return {
+            "session_id": f"devin-{len(created_sessions)}",
+            "url": "https://app.devin.ai/sessions/test",
+        }
+
+    messages = []
+
+    async def sent(session_id, message):
+        messages.append((session_id, message))
+
+    monkeypatch.setattr(games.devin_client, "create_session", created)
+    monkeypatch.setattr(games.devin_client, "send_message", sent)
+
+    with SessionLocal() as session:
+        session.query(Game).delete()
+        session.query(MistakeAnalysis).delete()
+        session.query(Attempt).delete()
+        session.add(_mistake(profile, "borrow_omitted", days_ago=1))
+        live = Game(
+            profile_id=profile,
+            skill_id="subtraction",
+            version=1,
+            status="ready",
+            is_live=True,
+        )
+        session.add(live)
+        session.commit()
+        live_id = live.id
+
+    first = client.post(f"/games/{live_id}/session-complete").json()
+    assert first["analysis"]["action"] == "analysis_started"
+    # Two agent sessions: the analysis agent, then the game-building agent.
+    assert len(created_sessions) == 2
+    assert "mistake-analysis agent" in created_sessions[0]["prompt"]
+    assert "borrow_omitted" in created_sessions[0]["prompt"]
+    # The game-building prompt carries the network too.
+    assert "MISTAKE NETWORK" in created_sessions[1]["prompt"]
+
+    second = client.post(f"/games/{live_id}/session-complete").json()
+    assert second["analysis"]["action"] == "analysis_updated"
+    assert len(created_sessions) == 2  # no duplicate agents
+    # Both in-flight sessions received the fresh play data.
+    assert {sid for sid, _ in messages} == {"devin-1", "devin-2"}
+    assert all("NEW PLAY DATA" in message for _, message in messages)
+
+
+def test_the_mistake_graph_endpoint_serves_the_network(client, profile):
+    with SessionLocal() as session:
+        session.query(Attempt).delete()
+        session.query(MistakeAnalysis).delete()
+        session.add(_mistake(profile, "borrow_omitted", days_ago=1))
+        session.add(
+            MistakeAnalysis(
+                profile_id=profile,
+                skill_id="subtraction",
+                status="complete",
+                analysis={"summary": "one regrouping misconception"},
+            )
+        )
+        session.commit()
+
+    body = client.get(f"/profiles/{profile}/skills/subtraction/mistake-graph").json()
+    assert body["graph"]["profile"]["emerging"] == ["borrow_omitted"]
+    assert body["latest_analysis"]["summary"] == "one regrouping misconception"
 
 
 def test_the_interviews_focus_answer_is_stored_as_self_regulation():

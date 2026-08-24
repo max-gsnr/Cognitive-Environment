@@ -159,6 +159,27 @@ class Game(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class MistakeAnalysis(Base):
+    """One run of the mistake-analysis agent for one child and skill.
+
+    The deterministic mistake network (app/mistake_graph.py) is snapshotted at
+    start; the Devin session's structured reading of it lands in `analysis`
+    when it finishes. The latest completed row is what the game-building
+    session receives alongside the raw graph.
+    """
+
+    __tablename__ = "mistake_analyses"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
+    profile_id: Mapped[str] = mapped_column(String, ForeignKey("child_profiles.id"))
+    skill_id: Mapped[str] = mapped_column(String, ForeignKey("skills.id"))
+    devin_session_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="analyzing")
+    graph_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    analysis: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
 

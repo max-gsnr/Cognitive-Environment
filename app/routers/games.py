@@ -18,6 +18,7 @@ from app import (
     devin_client,
     difficulty,
     gates,
+    mistake_graph,
     posthog_client,
     prompts,
     telemetry_signals,
@@ -29,6 +30,7 @@ from app.models import (
     ChildProfile,
     DevelopmentNote,
     Game,
+    MistakeAnalysis,
     ReportedProblem,
     SubjectMastery,
 )
@@ -82,6 +84,33 @@ STRUCTURED_OUTPUT_SCHEMA: dict[str, Any] = {
         "before_after_diff_summary": {"type": "string"},
     },
     "required": ["game_path", "gate_results"],
+}
+
+
+ANALYSIS_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "mistake_profile": {
+            "type": "object",
+            "properties": {
+                "persistent": {"type": "array", "items": {"type": "string"}},
+                "emerging": {"type": "array", "items": {"type": "string"}},
+                "resolved": {"type": "array", "items": {"type": "string"}},
+                "core_misconception": {"type": "string"},
+                "confidence": {"type": "string"},
+            },
+        },
+        "design_brief": {
+            "type": "object",
+            "properties": {
+                "confront": {"type": "string"},
+                "interaction": {"type": "string"},
+                "avoid": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        "summary": {"type": "string"},
+    },
+    "required": ["mistake_profile", "design_brief"],
 }
 
 
@@ -248,11 +277,12 @@ async def session_complete(
     the in-flight session instead of spawning a duplicate.
     """
     game = _require_game(session, game_id)
+    analysis = await _run_mistake_analysis(session, game)
     in_flight = _iteration_in_flight(session, game)
     if in_flight is None:
         result = await _start_iteration(session, game, demo_mode=False)
         session.commit()
-        return {"action": "iteration_started", **result}
+        return {"action": "iteration_started", "analysis": analysis, **result}
 
     signals = _signals(
         session,
@@ -285,9 +315,150 @@ async def session_complete(
     session.commit()
     return {
         "action": "play_data_forwarded",
+        "analysis": analysis,
         "game_id": in_flight.id,
         "devin_session_id": in_flight.devin_session_id,
         "status": in_flight.status,
+    }
+
+
+@router.get("/profiles/{profile_id}/skills/{skill_id}/mistake-graph")
+def get_mistake_graph(
+    profile_id: str, skill_id: str, session: Session = Depends(get_session)
+) -> dict[str, Any]:
+    """The child's mistake network plus the latest agent reading of it."""
+    return _mistake_network(session, profile_id, skill_id)
+
+
+async def _run_mistake_analysis(session: Session, game: Game) -> dict[str, Any]:
+    """The analysis agent runs alongside the game-building agent.
+
+    A fresh play session either starts a new analysis session over the updated
+    mistake network, or -- if one is still running for this child and skill --
+    forwards the updated graph into it.
+    """
+    graph = _build_graph(session, game.profile_id, game.skill_id)
+    running = session.scalars(
+        select(MistakeAnalysis)
+        .where(
+            MistakeAnalysis.profile_id == game.profile_id,
+            MistakeAnalysis.skill_id == game.skill_id,
+            MistakeAnalysis.status == "analyzing",
+        )
+        .order_by(MistakeAnalysis.created_at.desc())
+    ).first()
+    if running is not None:
+        if running.devin_session_id:
+            await devin_client.send_message(
+                running.devin_session_id,
+                "NEW PLAY DATA: the child finished another play session. "
+                "Fold this updated mistake network into your analysis before "
+                f"you finish.\nUPDATED MISTAKE NETWORK: {_json(graph)}",
+            )
+        running.graph_snapshot = graph
+        return {"action": "analysis_updated", "analysis_id": running.id}
+
+    profile = session.get(ChildProfile, game.profile_id)
+    if profile is None:
+        raise HTTPException(404, "profile not found")
+    notes = session.scalars(
+        select(DevelopmentNote)
+        .where(DevelopmentNote.profile_id == game.profile_id)
+        .order_by(DevelopmentNote.created_at.desc())
+        .limit(10)
+    ).all()
+    prompt = prompts.render(
+        prompts.ANALYZE_MISTAKES_PROMPT,
+        mistake_graph_json=_json(graph),
+        profile_json=_json(profile_dict(profile)),
+        development_notes_text=_notes_text(notes),
+    )
+    created = await devin_client.create_session(
+        prompt=prompt,
+        tags=["orbit", "analyze-mistakes", game.skill_id],
+        structured_output_schema=ANALYSIS_OUTPUT_SCHEMA,
+        title=f"Orbit: analyze {game.skill_id} mistakes for {profile.name}",
+    )
+    analysis = MistakeAnalysis(
+        profile_id=game.profile_id,
+        skill_id=game.skill_id,
+        devin_session_id=created.get("session_id"),
+        graph_snapshot=graph,
+    )
+    session.add(analysis)
+    session.flush()
+    audit.record(
+        session,
+        actor="system",
+        action="mistake_analysis_started",
+        payload={
+            "analysis_id": analysis.id,
+            "profile_id": game.profile_id,
+            "skill_id": game.skill_id,
+            "devin_session_id": analysis.devin_session_id,
+        },
+    )
+    return {"action": "analysis_started", "analysis_id": analysis.id}
+
+
+async def finalize_mistake_analyses(session: Session) -> int:
+    """Poll running analysis sessions and store their structured readings."""
+    running = session.scalars(
+        select(MistakeAnalysis).where(
+            MistakeAnalysis.status == "analyzing",
+            MistakeAnalysis.devin_session_id.is_not(None),
+        )
+    ).all()
+    finished = 0
+    for analysis in running:
+        remote = await devin_client.get_session(analysis.devin_session_id)
+        output = devin_client.extract_structured_output(remote)
+        if not devin_client.is_finished(remote) or output is None:
+            continue
+        analysis.analysis = output
+        analysis.status = "complete"
+        finished += 1
+        audit.record(
+            session,
+            actor="devin",
+            action="mistake_analysis_completed",
+            payload={"analysis_id": analysis.id, "profile_id": analysis.profile_id},
+        )
+    session.commit()
+    return finished
+
+
+def _build_graph(
+    session: Session, profile_id: str, skill_id: str
+) -> dict[str, Any]:
+    attempts = list(
+        session.scalars(
+            select(Attempt)
+            .where(
+                Attempt.profile_id == profile_id, Attempt.skill_id == skill_id
+            )
+            .order_by(Attempt.created_at, Attempt.id)
+        ).all()
+    )
+    return mistake_graph.build_graph(attempts)
+
+
+def _mistake_network(
+    session: Session, profile_id: str, skill_id: str
+) -> dict[str, Any]:
+    """The graph plus the latest completed agent reading of it."""
+    latest = session.scalars(
+        select(MistakeAnalysis)
+        .where(
+            MistakeAnalysis.profile_id == profile_id,
+            MistakeAnalysis.skill_id == skill_id,
+            MistakeAnalysis.status == "complete",
+        )
+        .order_by(MistakeAnalysis.created_at.desc())
+    ).first()
+    return {
+        "graph": _build_graph(session, profile_id, skill_id),
+        "latest_analysis": latest.analysis if latest else None,
     }
 
 
@@ -350,6 +521,9 @@ async def _start_iteration(
         since_timestamp=since.isoformat(),
         new_version=new_version,
         telemetry_signals_json=_json(signals),
+        mistake_network_json=_json(
+            _mistake_network(session, current.profile_id, current.skill_id)
+        ),
     )
 
     session_secrets = (

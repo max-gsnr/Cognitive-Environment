@@ -25,7 +25,7 @@ from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.models import Game
-from app.routers.games import _poll, daily_run
+from app.routers.games import _poll, daily_run, finalize_mistake_analyses
 
 logger = logging.getLogger("orbit.scheduler")
 
@@ -68,6 +68,13 @@ async def poll_loop(interval: float = POLL_INTERVAL_SECONDS) -> None:
                     except Exception:
                         session.rollback()
                         logger.exception("poll failed for game %s", game.id)
+                try:
+                    finished = await finalize_mistake_analyses(session)
+                    if finished:
+                        logger.info("poll: %d mistake analyses completed", finished)
+                except Exception:
+                    session.rollback()
+                    logger.exception("mistake analysis polling failed")
         except Exception:
             logger.exception("poll loop pass failed; retrying next interval")
 

@@ -277,6 +277,18 @@ CHILD-REPORTED PROBLEMS (from the in-game "report a problem" button --
 treat these as high priority, explicit signals from the child):
 {reported_problems_text}
 
+MISTAKE NETWORK (the child's mistakes as a linked graph, built
+deterministically by app/mistake_graph.py: instances linked by error
+class, classes linked by cognitive family and observed co-occurrence,
+folded into a profile of past vs. current mistakes -- `persistent`
+classes have survived multiple versions and deserve a game built around
+confronting them; `emerging` classes are new and the design should probe
+them; `resolved` classes should not be re-drilled). If a mistake-analysis
+agent has finished a reading of this graph, it is included under
+`latest_analysis` -- treat its recommendations as a design brief from a
+colleague who studied this child's error history:
+{mistake_network_json}
+
 PRECOMPUTED SIGNALS (ground truth -- do not recompute these yourself)
 The backend already folded this version's telemetry into named signals with
 the same arithmetic this prompt used to ask you to do by hand, so that the
@@ -334,7 +346,8 @@ TASK
    problems for additional context -- a note like "rough week at home"
    should make you cautious about reading one bad session as regression.
 3. Design the new game: pick the new mechanic, goal, input modality and
-   theme per the reinvention mandate, and let the telemetry steer the
+   theme per the reinvention mandate, and let the mistake network and
+   the telemetry steer the
    choice -- e.g. boredom signals argue for a faster, more kinetic
    mechanic; working-memory signals argue for a mechanic whose objects
    are countable and manipulable; impulsive guessing argues for an input
@@ -384,6 +397,74 @@ Return structured JSON:
   "before_after_diff_summary": "2-3 sentences a non-technical teacher
                                  could read, saying what the new game IS
                                  and how it differs from yesterday's"
+}
+"""
+
+
+ANALYZE_MISTAKES_PROMPT = """\
+You are the mistake-analysis agent for Orbit, an adaptive learning
+platform for children with ADHD. You run alongside the game-building
+agent after every play session: while it reinvents the game, you study
+the child's error history so the NEXT reinvention starts from a real
+cognitive profile instead of a raw error count. Do not ask the user
+questions -- decide and act. Do NOT write any code or open any PR: your
+entire product is the structured JSON analysis.
+
+THE MISTAKE NETWORK (built deterministically by app/mistake_graph.py:
+every wrong answer is a node, instances are linked by error class,
+classes are linked by cognitive family -- regrouping / structure /
+attention -- and by observed same-day co-occurrence, and folded into a
+past-vs-current profile):
+{mistake_graph_json}
+
+CHILD PROFILE:
+{profile_json}
+
+RECENT TEACHER/PARENT NOTES (teacher notes outweigh parent notes if they
+conflict):
+{development_notes_text}
+
+TASK
+1. Read the network. Distinguish what the child USED to get wrong from
+   what they get wrong NOW: which classes are persistent (survived
+   multiple game versions -- the design has not yet reached them), which
+   are emerging (new -- possibly triggered by the latest game's input
+   modality or pacing), and which are resolved (do not re-drill them).
+2. Follow the edges. Co-occurring classes in the same family usually
+   share one underlying misconception (e.g. borrow_omitted +
+   borrow_across_zero + carry_omitted co-occurring is one regrouping
+   misconception, not three problems). Name the misconception, not the
+   symptom list.
+3. Check the tiers each class lives at against the difficulty vector: a
+   class that only appears at the newest tier is a frontier being
+   explored; the same class across every tier is a foundation gap.
+4. Write a design brief for the game-building agent: which ONE
+   misconception the next game should be built around confronting, what
+   kind of interaction would surface it (countable objects, explicit
+   regrouping steps, deliberate multi-step input, ...), and what to
+   avoid (re-drilling resolved classes, punishing the frontier).
+
+While you work, a NEW PLAY DATA message may arrive with an updated
+graph -- fold it in before you finish.
+
+OUTPUT
+Return structured JSON:
+{
+  "mistake_profile": {
+    "persistent": ["..."],
+    "emerging": ["..."],
+    "resolved": ["..."],
+    "core_misconception": "one sentence naming the underlying
+                            misconception behind the linked classes",
+    "confidence": "high" | "medium" | "low"
+  },
+  "design_brief": {
+    "confront": "the ONE misconception the next game should target",
+    "interaction": "what kind of interaction would surface and fix it",
+    "avoid": ["what the next game must not do"]
+  },
+  "summary": "2-3 sentences a teacher could read about how this child's
+              mistakes have evolved"
 }
 """
 

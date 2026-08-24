@@ -89,6 +89,16 @@ design before shipping) instead of spawning a duplicate. A background poller ins
 the API process finalizes in-flight sessions — gating them and setting them live —
 without anyone watching a frontend.
 
+Each session-complete also runs a second agent alongside the game builder: a
+mistake-analysis session. The child's wrong answers form an intertwined network
+(`app/mistake_graph.py`) — instances linked by error class, classes linked by
+cognitive family (regrouping / structure / attention) and same-day co-occurrence —
+folded into a profile of past vs. current mistakes (persistent / emerging /
+resolved). The analysis agent reads that network and writes a design brief naming
+the one misconception the next game should confront; the game-building prompt
+receives both the raw graph and the latest completed brief. The network is served
+at `GET /profiles/{profile_id}/skills/{skill_id}/mistake-graph`.
+
 As a safety net, `POST /games/daily-run` starts one reinvention session per live game
 that has no successor in flight, so a game the child stopped playing keeps evolving.
 Set `DAILY_RUN_HOUR_UTC` to have the API process trigger it itself once a day, or
