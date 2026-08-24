@@ -451,6 +451,93 @@ def test_a_gate_verdict_may_carry_its_evidence():
     assert gates_passed(evidenced) is False
 
 
+def test_iteration_requires_the_novelty_gate():
+    """A reinvention that only re-tunes the old game must not go live."""
+    four = {
+        "schema": "pass",
+        "assertions": "pass",
+        "playthrough": "pass",
+        "render_accessibility": "pass",
+    }
+    assert gates_passed(four, games.ITERATION_GATES) is False
+    assert gates_passed(
+        {**four, "novelty": "PASS - catching mechanic, new goal and input"},
+        games.ITERATION_GATES,
+    ) is True
+    assert gates_passed(
+        {**four, "novelty": "FAIL - same mechanic re-skinned"},
+        games.ITERATION_GATES,
+    ) is False
+
+
+def test_iteration_prompt_carries_the_design_history(client, profile, monkeypatch):
+    captured = {}
+
+    async def created(**kwargs):
+        captured["prompt"] = kwargs["prompt"]
+        return {"session_id": "devin-test", "url": "https://app.devin.ai/sessions/test"}
+
+    monkeypatch.setattr(games.devin_client, "create_session", created)
+
+    with SessionLocal() as session:
+        current = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=1,
+            status="ready",
+            is_live=True,
+            design={
+                "mechanic": "stack cargo onto a rocket",
+                "goal": "reach the target payload",
+                "input_mode": "typed digits",
+                "theme": "outer space",
+                "reward_style": "launch animation per correct answer",
+            },
+        )
+        session.add(current)
+        session.commit()
+        current_id = current.id
+
+    client.post(f"/games/{current_id}/iterate", json={})
+    assert "stack cargo onto a rocket" in captured["prompt"]
+    assert "REINVENTION MANDATE" in captured["prompt"]
+
+
+def test_daily_run_reinvents_every_live_game_once(client, profile, monkeypatch):
+    async def created(**_kwargs):
+        return {"session_id": "devin-test", "url": "https://app.devin.ai/sessions/test"}
+
+    monkeypatch.setattr(games.devin_client, "create_session", created)
+
+    with SessionLocal() as session:
+        session.query(Game).delete()
+        live_addition = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=1,
+            status="ready",
+            is_live=True,
+        )
+        live_subtraction = Game(
+            profile_id=profile,
+            skill_id="subtraction",
+            version=1,
+            status="ready",
+            is_live=True,
+        )
+        session.add_all([live_addition, live_subtraction])
+        session.commit()
+
+    body = client.post("/games/daily-run").json()
+    assert len(body["started"]) == 2
+    assert body["skipped"] == []
+
+    # A second run the same day skips: the successors are still in flight.
+    again = client.post("/games/daily-run").json()
+    assert again["started"] == []
+    assert len(again["skipped"]) == 2
+
+
 def test_the_interviews_focus_answer_is_stored_as_self_regulation():
     assert _restlessness("focus") == "self_regulation"
     assert _restlessness("self_regulation") == "self_regulation"

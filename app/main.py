@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -22,12 +23,21 @@ from app.routers import (
     intake,
     profiles,
 )
+from app.scheduler import daily_loop
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     init_db()
-    yield
+    scheduler = None
+    hour = settings.daily_run_hour
+    if hour is not None and settings.devin_configured:
+        scheduler = asyncio.create_task(daily_loop(hour))
+    try:
+        yield
+    finally:
+        if scheduler is not None:
+            scheduler.cancel()
 
 
 app = FastAPI(title="Orbit", version="0.1.0", lifespan=lifespan)

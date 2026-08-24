@@ -152,7 +152,17 @@ TASK
    there.
 5. Include a visible "Report a problem" button that POSTs a short
    description to /games/{game_id}/report-problem.
-6. Instrument with PostHog (project key: {posthog_project_key}, host:
+6. Write a design manifest at games/{profile_id}/{skill_id}/v1/design.json
+   describing the game you actually built:
+   {"mechanic": "...", "goal": "...", "input_mode": "...",
+    "theme": "...", "reward_style": "..."}
+   (mechanic = the core verb of play, e.g. "stack cargo onto a rocket";
+   goal = what the child is trying to achieve; input_mode = how answers
+   are physically given, e.g. typed digits / drag-and-drop / clicking
+   groups; theme = the fictional setting; reward_style = how success is
+   celebrated). Future daily iterations use this manifest to guarantee
+   the next version is a genuinely different game.
+7. Instrument with PostHog (project key: {posthog_project_key}, host:
    {posthog_host}). Emit problem_shown, answer_submitted {attempt_id,
    correct, time_to_solve_ms, error_class} (attempt_id and error_class
    both come back from the /attempts response -- forward them into the
@@ -167,7 +177,7 @@ TASK
    game_id={game_id}, profile_id={profile_id}, skill_id={skill_id},
    version=1, and the current difficulty_vector's fields flattened as
    properties.
-7. Default session length: {session_length} questions.
+8. Default session length: {session_length} questions.
 
 SHIPPING GATES -- required before you open a PR, do not skip
 - Schema validation: every question object returned by the backend
@@ -196,18 +206,47 @@ Return structured JSON (in addition to opening the PR):
   "commit_sha": "...",
   "gate_results": {"schema": "...", "assertions": "...",
                     "playthrough": "...", "render_accessibility": "..."},
+  "design": {"mechanic": "...", "goal": "...", "input_mode": "...",
+              "theme": "...", "reward_style": "..."},
   "summary": "2-3 sentences on what you built and which profile
               constraints shaped which design decisions"
 }
 """
 
 ITERATE_PROMPT = """\
-You are running the autonomous improvement loop for Orbit, an adaptive
+You are running the daily reinvention loop for Orbit, an adaptive
 learning platform for children with ADHD. Numeric difficulty tuning
 already happened in real time, deterministically, outside this session --
-that is NOT your job here. Your job is to decide whether the GAME ITSELF
-needs to change: pacing, reward mechanics, or visual scaffolding. Do not
+that is NOT your job here. Your job is to ship a version of this child's
+game that is a NOTICEABLY DIFFERENT GAME from yesterday's: a child who
+played the current version must sit down tomorrow and recognise it as
+new. Re-tuning pacing or rewards on the same game is not enough. Do not
 ask the user questions -- decide and act.
+
+THE REINVENTION MANDATE (non-negotiable)
+The new version MUST change the core mechanic -- the verb of play -- to
+one this child has not seen in any previous version (see DESIGN HISTORY
+below), AND change at least one of:
+  - the goal structure (what the child is trying to achieve: reach a
+    target, rescue something, build something, race something, uncover
+    something, feed something)
+  - the input modality (how answers are physically given: typed digits,
+    drag-and-drop objects, clicking/counting groups, sliders, assembling
+    digit tiles, drawing a path through correct answers)
+  - the theme (a different one of the child's ranked interests, or a
+    fresh setting inside the top interest)
+Mechanic ideas to draw from (invent your own too): stacking/loading,
+excavating/uncovering, catching falling objects, sorting into bins,
+feeding a creature, launching/aiming, building a bridge piece by piece,
+trading at a shop, mixing ingredients, repairing a machine part by part.
+What stays FIXED across every reinvention: the backend contract (see
+below), every profile constraint, the telemetry events, and the math
+itself -- the backend still owns questions and correctness.
+
+DESIGN HISTORY (every previous version of this child's game for this
+skill -- your new mechanic must not repeat any mechanic listed here, and
+the overall design must be visibly distinct from the most recent entry):
+{design_history_json}
 
 CHILD PROFILE (must remain respected in any change you make):
 {profile_json}
@@ -236,11 +275,13 @@ same session always reads the same way and can be regression-tested offline
 (app/telemetry_signals.py). Treat them as given:
 {telemetry_signals_json}
 
-If `dominant_signal` is "healthy_struggle" or "inconclusive", the correct
-action is to change nothing: say so in your diagnosis, do not open a PR, and
-report the gates as skipped. If it is "none" for change_tier, the same
-applies. Disagree with the summarizer only if PostHog shows something it
-could not see, and say explicitly what that was.
+The reinvention still ships whatever the dominant signal is -- the daily
+mandate is unconditional. The signals decide the KIND of game you build:
+if `dominant_signal` is "healthy_struggle" or "inconclusive", keep the new
+game's cognitive demands and pacing equivalent to the current version's
+while changing the mechanic, and say so in your diagnosis. Disagree with
+the summarizer only if PostHog shows something it could not see, and say
+explicitly what that was.
 
 POSTHOG ACCESS (for detail the signals above do not cover)
 A read-only PostHog personal API key is available in this session as the
@@ -267,14 +308,15 @@ profile's restlessness_interpretation field. If it is "self_regulation", do not
 read orbiting as disengagement.
 
 REFERENCE (your primary framework; deviate if the evidence clearly points
-elsewhere):
-| Signal | Meaning | Your fix |
+elsewhere). Every iteration reinvents the game -- these signals decide
+what KIND of game to build next:
+| Signal | Meaning | What the new design should do |
 |---|---|---|
-| High idle ratio + disengagement pattern on non-hard material | Bored with the game, not the math | Increase reward frequency / tighten pacing (PRESENTATION) |
-| Frequent fast + incorrect answers | Impulsive guessing | ~2.5s gentle cooldown after a wrong answer, before the next guess is accepted (CONTENT) |
-| Rage clicks / abandoned levels / a reported problem describing a bug | Frustration, or a real bug | Fix any described bug FIRST; then remove remaining fail-state UI and shorten the level |
-| High micro_jitter + high after-pause-edit rate | Genuinely engaged, working hard | Do NOT weaken the game -- this is healthy struggle, leave it alone |
-| High time-to-solve on CORRECT answers, repeatedly | Working-memory bottleneck, not a math gap | Add a visual scaffold -- draggable countable objects instead of typed digits (STRUCTURAL) |
+| High idle ratio + disengagement pattern on non-hard material | Bored with the game, not the math | A faster, more kinetic mechanic with instant per-action feedback and tighter pacing (PRESENTATION) |
+| Frequent fast + incorrect answers | Impulsive guessing | An input modality where committing an answer takes deliberate physical steps, plus a ~2.5s gentle cooldown after a wrong answer (CONTENT) |
+| Rage clicks / abandoned levels / a reported problem describing a bug | Frustration, or a real bug | Make sure the described bug's cause cannot recur in the new game; no fail-state UI; shorter levels |
+| High micro_jitter + high after-pause-edit rate | Genuinely engaged, working hard | Keep the new game's cognitive demands at the same level -- reinvent the surface, do not soften the work |
+| High time-to-solve on CORRECT answers, repeatedly | Working-memory bottleneck, not a math gap | A mechanic whose objects are countable and manipulable -- draggable pieces instead of typed digits (STRUCTURAL) |
 
 TASK
 1. Read the precomputed signals. Query PostHog only for context they do not
@@ -282,18 +324,33 @@ TASK
 2. Read the error-class breakdown, teacher/parent notes, and reported
    problems for additional context -- a note like "rough week at home"
    should make you cautious about reading one bad session as regression.
-3. Decide the change tier: content, presentation, or structural.
-4. Read the current game code at {code_path} and implement the specific
-   change(s). Keep every existing profile constraint intact -- you are
-   refining pacing, feedback, and scaffolding, not undoing accessibility
-   settings. Do not change the difficulty vector, the question
-   generator, or the error classifier -- those live in the backend and
-   are not yours.
-5. Write the changed game to
+3. Design the new game: pick the new mechanic, goal, input modality and
+   theme per the reinvention mandate, and let the telemetry steer the
+   choice -- e.g. boredom signals argue for a faster, more kinetic
+   mechanic; working-memory signals argue for a mechanic whose objects
+   are countable and manipulable; impulsive guessing argues for an input
+   modality that takes deliberate physical steps to commit an answer.
+   Fix any child-reported bug's underlying cause in the new game.
+4. Read the current game code at {code_path} for the backend contract
+   and telemetry wiring, then build the new game from its own design.
+   Keep every profile constraint intact. The game stays a RENDERING
+   SHELL: it must fetch every question from GET
+   /profiles/{profile_id}/skills/{skill_id}/next-question and submit
+   every answer to POST /attempts. Do not change the difficulty vector,
+   the question generator, or the error classifier -- those live in the
+   backend and are not yours. Keep the "Report a problem" button and
+   the full PostHog event set, with version={new_version}.
+5. Write the new game to
    games/{profile_id}/{skill_id}/v{new_version}/ where new_version =
-   {current_version} + 1.
+   {current_version} + 1, including a design.json manifest:
+   {"mechanic": "...", "goal": "...", "input_mode": "...",
+    "theme": "...", "reward_style": "..."}
 6. Re-run the exact shipping gates from generation: schema validation,
-   assertions, headless playthrough, render/accessibility check.
+   assertions, headless playthrough, render/accessibility check. Then
+   run the fifth gate, novelty: state the new mechanic, confirm it
+   appears nowhere in the design history, and name which of goal /
+   input modality / theme also changed. If the game is the previous
+   version re-skinned, the novelty gate FAILS.
 7. Open a pull request with the gate results in the description.
    Auto-merge only if every gate passed; otherwise leave it open and
    report the failure.
@@ -301,16 +358,21 @@ TASK
 OUTPUT
 Return structured JSON:
 {
-  "diagnosis": "one paragraph: which signal(s) dominated and why",
+  "diagnosis": "one paragraph: which signal(s) dominated and why they
+                point at the design you chose",
   "change_tier": "content" | "presentation" | "structural",
   "changes_made": ["short bullet", "short bullet", "..."],
   "game_path": "games/{profile_id}/{skill_id}/v{new_version}/index.html",
   "pr_url": "...",
   "commit_sha": "...",
   "gate_results": {"schema": "...", "assertions": "...",
-                    "playthrough": "...", "render_accessibility": "..."},
+                    "playthrough": "...", "render_accessibility": "...",
+                    "novelty": "..."},
+  "design": {"mechanic": "...", "goal": "...", "input_mode": "...",
+              "theme": "...", "reward_style": "..."},
   "before_after_diff_summary": "2-3 sentences a non-technical teacher
-                                 could read"
+                                 could read, saying what the new game IS
+                                 and how it differs from yesterday's"
 }
 """
 

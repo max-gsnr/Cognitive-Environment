@@ -62,9 +62,9 @@ Two loops, deliberately separated:
 
 | | Loop A — difficulty | Loop B — the game |
 | --- | --- | --- |
-| Runs | after every single answer | after a play session |
+| Runs | after every single answer | daily, per live game |
 | Decided by | pure Python over the database | a Devin session |
-| Changes | which numbers come next | pacing, rewards, scaffolding, bugs |
+| Changes | which numbers come next | the game itself: mechanic, goal, input, theme |
 | Ships as | a row in `subject_mastery` | a gated pull request |
 
 Loop A never calls a model. `POST /attempts` classifies the answer (`borrow_omitted`,
@@ -72,9 +72,19 @@ Loop A never calls a model. `POST /attempts` classifies the answer (`borrow_omit
 the next question at the tier where they should get roughly 80% right — a success rate a
 child with ADHD can stay inside, rather than one correct answer buying one step harder.
 
-Loop B hands Devin the profile, the error breakdown, the teacher's notes and a scoped
-PostHog key, and only marks a generated game live once all four gates — schema,
-assertions, headless playthrough, render/accessibility — report a pass.
+Loop B is a daily reinvention, not a nightly tweak. Each run hands Devin the profile,
+the error breakdown, the teacher's notes, a scoped PostHog key, and the design history
+of every version the child has played (`design.json` per version), and demands a
+noticeably different game: a new core mechanic plus a change of goal, input modality,
+or theme. Telemetry steers the design — boredom argues for a kinetic mechanic,
+working-memory strain for countable draggable objects. A generated game only goes live
+once every gate — schema, assertions, headless playthrough, render/accessibility, and
+(for iterations) novelty — reports a pass.
+
+`POST /games/daily-run` starts one reinvention session per live game, skipping any
+game whose successor is still in flight. Set `DAILY_RUN_HOUR_UTC` to have the API
+process trigger it itself once a day, or leave it unset and cron
+`scripts/daily_run.py`.
 
 Devin is never the only witness to its own work. Before a version can go live the backend
 re-checks the artifact itself (`app/gates.py`): that it asks *us* for questions instead of

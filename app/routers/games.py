@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -42,6 +43,9 @@ from app.schemas import (
 router = APIRouter(tags=["games"])
 
 REQUIRED_GATES = ("schema", "assertions", "playthrough", "render_accessibility")
+# Iteration is a daily reinvention: the fifth gate is proof the new version is a
+# different game, not the previous one re-tuned.
+ITERATION_GATES = (*REQUIRED_GATES, "novelty")
 PASSING = {"pass", "passed", "ok", "true", "yes"}
 VERDICT = re.compile(r"^\s*([a-z]+)", re.IGNORECASE)
 
@@ -53,7 +57,20 @@ STRUCTURED_OUTPUT_SCHEMA: dict[str, Any] = {
         "commit_sha": {"type": "string"},
         "gate_results": {
             "type": "object",
-            "properties": {gate: {"type": "string"} for gate in REQUIRED_GATES},
+            "properties": {gate: {"type": "string"} for gate in ITERATION_GATES},
+        },
+        "design": {
+            "type": "object",
+            "properties": {
+                field: {"type": "string"}
+                for field in (
+                    "mechanic",
+                    "goal",
+                    "input_mode",
+                    "theme",
+                    "reward_style",
+                )
+            },
         },
         "summary": {"type": "string"},
         "diagnosis": {"type": "string"},
@@ -72,7 +89,10 @@ def _with_repo(prompt: str) -> str:
     return f"REPOSITORY: {settings.repo_url} (base branch: main)\n\n{prompt}"
 
 
-def gates_passed(gate_results: dict[str, Any] | None) -> bool:
+def gates_passed(
+    gate_results: dict[str, Any] | None,
+    required: tuple[str, ...] = REQUIRED_GATES,
+) -> bool:
     """Every required gate must report a pass. A missing gate is a failure.
 
     Devin reports a gate as a verdict followed by its evidence -- "PASS - all 10
@@ -89,7 +109,7 @@ def gates_passed(gate_results: dict[str, Any] | None) -> bool:
     independent = gate_results.get("independent")
     if isinstance(independent, dict) and not independent.get("passed"):
         return False
-    for gate in REQUIRED_GATES:
+    for gate in required:
         value = gate_results.get(gate)
         if isinstance(value, bool):
             if not value:
@@ -173,13 +193,60 @@ async def iterate_game(
     game_id: str, body: IterateRequest, session: Session = Depends(get_session)
 ) -> dict[str, Any]:
     current = _require_game(session, game_id)
+    result = await _start_iteration(session, current, demo_mode=body.demo_mode)
+    session.commit()
+    return result
+
+
+@router.post("/games/daily-run")
+async def daily_run(session: Session = Depends(get_session)) -> dict[str, Any]:
+    """Reinvent every live game: one Devin session per profile-and-skill.
+
+    This is the endpoint a daily scheduler hits. Each live game gets exactly one
+    successor session; games already mid-generation or mid-iteration are left
+    alone so a slow session is not doubled up on.
+    """
+    live_games = session.scalars(select(Game).where(Game.is_live.is_(True))).all()
+    started: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    for game in live_games:
+        if _iteration_in_flight(session, game):
+            skipped.append({"game_id": game.id, "reason": "iteration_in_flight"})
+            continue
+        started.append(await _start_iteration(session, game, demo_mode=False))
+    audit.record(
+        session,
+        actor="system",
+        action="daily_run_started",
+        payload={"started": len(started), "skipped": len(skipped)},
+    )
+    session.commit()
+    return {"started": started, "skipped": skipped}
+
+
+def _iteration_in_flight(session: Session, game: Game) -> bool:
+    return (
+        session.scalars(
+            select(Game).where(
+                Game.profile_id == game.profile_id,
+                Game.skill_id == game.skill_id,
+                Game.status.in_(["generating", "iterating"]),
+            )
+        ).first()
+        is not None
+    )
+
+
+async def _start_iteration(
+    session: Session, current: Game, demo_mode: bool
+) -> dict[str, Any]:
     profile = session.get(ChildProfile, current.profile_id)
     if profile is None:
         raise HTTPException(404, "profile not found")
     mastery = session.get(SubjectMastery, (current.profile_id, current.skill_id))
 
-    if body.demo_mode:
-        seed_posthog_events(session, game_id)
+    if demo_mode:
+        seed_posthog_events(session, current.id)
 
     since = datetime.now(UTC) - timedelta(days=3)
     breakdown = _error_class_breakdown(session, current.profile_id, current.skill_id)
@@ -198,6 +265,9 @@ async def iterate_game(
     prompt = prompts.render(
         prompts.ITERATE_PROMPT,
         profile_json=_json(profile_dict(profile)),
+        design_history_json=_json(
+            _design_history(session, current.profile_id, current.skill_id)
+        ),
         code_path=current.code_path or "",
         current_version=current.version,
         skill_label=current.skill_id.capitalize(),
@@ -211,7 +281,7 @@ async def iterate_game(
         reported_problems_text=_problems_text(problems),
         posthog_project_id=settings.posthog_project_id,
         posthog_host=settings.posthog_host,
-        game_id=game_id,
+        game_id=current.id,
         profile_id=current.profile_id,
         since_timestamp=since.isoformat(),
         new_version=new_version,
@@ -244,18 +314,18 @@ async def iterate_game(
         },
     )
     session.add(successor)
+    session.flush()
     audit.record(
         session,
         actor="system",
         action="iteration_started",
         payload={
-            "from_game_id": game_id,
+            "from_game_id": current.id,
             "game_id": successor.id,
             "devin_session_id": successor.devin_session_id,
-            "demo_mode": body.demo_mode,
+            "demo_mode": demo_mode,
         },
     )
-    session.commit()
     return {
         "game_id": successor.id,
         "devin_session_id": successor.devin_session_id,
@@ -362,6 +432,9 @@ async def _poll(session: Session, game_id: str, action: str) -> dict[str, Any]:
     )
     game.gate_results = reported
     game.pr_url = output.get("pr_url") or devin_client.pull_request_url(remote)
+    design = output.get("design")
+    if isinstance(design, dict):
+        game.design = design
     game.test_report = {
         key: output[key]
         for key in (
@@ -374,7 +447,8 @@ async def _poll(session: Session, game_id: str, action: str) -> dict[str, Any]:
         if key in output
     } or None
 
-    if gates_passed(game.gate_results):
+    required = ITERATION_GATES if action == "iteration_completed" else REQUIRED_GATES
+    if gates_passed(game.gate_results, required):
         game.status = "ready"
         _set_live(session, game)
     else:
@@ -430,6 +504,40 @@ def _next_version(session: Session, profile_id: str, skill_id: str) -> int:
         )
     )
     return (highest or 0) + 1
+
+
+def _design_history(
+    session: Session, profile_id: str, skill_id: str
+) -> list[dict[str, Any]]:
+    """Every version's design manifest, oldest first, so a reinvention session
+    can see what this child has already played and avoid repeating it."""
+    rows = session.scalars(
+        select(Game)
+        .where(Game.profile_id == profile_id, Game.skill_id == skill_id)
+        .order_by(Game.version)
+    ).all()
+    history = []
+    for row in rows:
+        design = row.design or _design_from_disk(profile_id, skill_id, row.version)
+        entry: dict[str, Any] = {"version": row.version, "status": row.status}
+        if design:
+            entry.update(design)
+        history.append(entry)
+    return history
+
+
+def _design_from_disk(
+    profile_id: str, skill_id: str, version: int
+) -> dict[str, Any] | None:
+    path = (
+        Path(settings.games_root) / profile_id / skill_id / f"v{version}"
+        / "design.json"
+    )
+    try:
+        parsed = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 def _error_class_breakdown(

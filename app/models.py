@@ -145,6 +145,10 @@ class Game(Base):
     pr_url: Mapped[str | None] = mapped_column(String, nullable=True)
     is_live: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String, default="generating")
+    # The design manifest for this version: mechanic, goal, input mode, theme,
+    # reward style. Successor versions read the roster of past manifests so a
+    # daily iteration can prove it is a different game, not a re-tuned one.
+    design: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     test_report: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Devin's own gate report, plus ours under "independent" (see app/gates.py).
     gate_results: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
