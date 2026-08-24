@@ -62,9 +62,9 @@ Two loops, deliberately separated:
 
 | | Loop A — difficulty | Loop B — the game |
 | --- | --- | --- |
-| Runs | after every single answer | after a play session |
+| Runs | after every single answer | after every play session |
 | Decided by | pure Python over the database | a Devin session |
-| Changes | which numbers come next | pacing, rewards, scaffolding, bugs |
+| Changes | which numbers come next | the game itself: mechanic, goal, input, theme |
 | Ships as | a row in `subject_mastery` | a gated pull request |
 
 Loop A never calls a model. `POST /attempts` classifies the answer (`borrow_omitted`,
@@ -72,9 +72,43 @@ Loop A never calls a model. `POST /attempts` classifies the answer (`borrow_omit
 the next question at the tier where they should get roughly 80% right — a success rate a
 child with ADHD can stay inside, rather than one correct answer buying one step harder.
 
-Loop B hands Devin the profile, the error breakdown, the teacher's notes and a scoped
-PostHog key, and only marks a generated game live once all four gates — schema,
-assertions, headless playthrough, render/accessibility — report a pass.
+Loop B is a reinvention, not a tweak. Each run hands Devin the profile,
+the error breakdown, the teacher's notes, a scoped PostHog key, and the design history
+of every version the child has played (`design.json` per version), and demands a
+noticeably different game: a new core mechanic plus a change of goal, input modality,
+or theme. Telemetry steers the design — boredom argues for a kinetic mechanic,
+working-memory strain for countable draggable objects. A generated game only goes live
+once every gate — schema, assertions, headless playthrough, render/accessibility, and
+(for iterations) novelty — reports a pass.
+
+Every play session is new data, and new data means a new game. The game shell POSTs
+`/games/{game_id}/session-complete` when a play session ends; that immediately starts
+a Devin session building the next version. If the child plays again before it ships,
+the fresh telemetry is forwarded into the in-flight session (which folds it into the
+design before shipping) instead of spawning a duplicate. A background poller inside
+the API process finalizes in-flight sessions — gating them and setting them live —
+without anyone watching a frontend.
+
+Each session-complete also runs a second agent alongside the game builder: a
+mistake-analysis session. The child's wrong answers form an intertwined network
+(`app/mistake_graph.py`) — instances linked by error class, classes linked by
+cognitive family (regrouping / structure / attention) and same-day co-occurrence —
+folded into a profile of past vs. current mistakes (persistent / emerging /
+resolved). The analysis agent reads that network and writes a design brief naming
+the one misconception the next game should confront; the game-building prompt
+receives both the raw graph and the latest completed brief. The network is served
+at `GET /profiles/{profile_id}/skills/{skill_id}/mistake-graph`.
+
+The journey itself is visible on the Progress Map tab: each topic is an island
+(addition → subtraction → multiplication → division), the child's position on Loop A's
+difficulty ladder is how far across the island they have travelled, and getting far
+enough builds the bridge to the next topic. Backed by
+`GET /profiles/{profile_id}/progress-map` (`app/progress.py`).
+
+As a safety net, `POST /games/daily-run` starts one reinvention session per live game
+that has no successor in flight, so a game the child stopped playing keeps evolving.
+Set `DAILY_RUN_HOUR_UTC` to have the API process trigger it itself once a day, or
+leave it unset and cron `scripts/daily_run.py`.
 
 Devin is never the only witness to its own work. Before a version can go live the backend
 re-checks the artifact itself (`app/gates.py`): that it asks *us* for questions instead of

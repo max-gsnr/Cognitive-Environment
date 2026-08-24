@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -21,13 +22,27 @@ from app.routers import (
     games,
     intake,
     profiles,
+    progress,
 )
+from app.scheduler import daily_loop, poll_loop
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     init_db()
-    yield
+    tasks: list[asyncio.Task[None]] = []
+    if settings.devin_configured:
+        # Finalizes in-flight Devin sessions so successors go live (and unblock
+        # the next reinvention) without a frontend watching them.
+        tasks.append(asyncio.create_task(poll_loop()))
+        hour = settings.daily_run_hour
+        if hour is not None:
+            tasks.append(asyncio.create_task(daily_loop(hour)))
+    try:
+        yield
+    finally:
+        for task in tasks:
+            task.cancel()
 
 
 app = FastAPI(title="Orbit", version="0.1.0", lifespan=lifespan)
@@ -49,6 +64,7 @@ app.include_router(games.router)
 app.include_router(demo.router)
 app.include_router(audit_log.router)
 app.include_router(analytics.router)
+app.include_router(progress.router)
 
 
 os.makedirs(settings.games_root, exist_ok=True)

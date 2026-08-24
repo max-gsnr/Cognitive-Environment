@@ -145,6 +145,10 @@ class Game(Base):
     pr_url: Mapped[str | None] = mapped_column(String, nullable=True)
     is_live: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String, default="generating")
+    # The design manifest for this version: mechanic, goal, input mode, theme,
+    # reward style. Successor versions read the roster of past manifests so a
+    # daily iteration can prove it is a different game, not a re-tuned one.
+    design: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     test_report: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     # Devin's own gate report, plus ours under "independent" (see app/gates.py).
     gate_results: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
@@ -153,6 +157,27 @@ class Game(Base):
     # or we may have changed the instructions underneath it.
     provenance: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class MistakeAnalysis(Base):
+    """One run of the mistake-analysis agent for one child and skill.
+
+    The deterministic mistake network (app/mistake_graph.py) is snapshotted at
+    start; the Devin session's structured reading of it lands in `analysis`
+    when it finishes. The latest completed row is what the game-building
+    session receives alongside the raw graph.
+    """
+
+    __tablename__ = "mistake_analyses"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_id)
+    profile_id: Mapped[str] = mapped_column(String, ForeignKey("child_profiles.id"))
+    skill_id: Mapped[str] = mapped_column(String, ForeignKey("skills.id"))
+    devin_session_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="analyzing")
+    graph_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    analysis: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
 class AuditLog(Base):

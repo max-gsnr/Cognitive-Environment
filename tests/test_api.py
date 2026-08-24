@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app import difficulty
+from app import difficulty, mistake_graph, progress
 from app.db import SessionLocal, init_db
 from app.main import app
 from app.models import (
@@ -12,6 +12,7 @@ from app.models import (
     ChildProfile,
     Game,
     IntakeSession,
+    MistakeAnalysis,
     ReportedProblem,
     SubjectMastery,
 )
@@ -449,6 +450,330 @@ def test_a_gate_verdict_may_carry_its_evidence():
 
     evidenced["playthrough"] = "the earlier attempt did not pass, this one is fine"
     assert gates_passed(evidenced) is False
+
+
+def test_iteration_requires_the_novelty_gate():
+    """A reinvention that only re-tunes the old game must not go live."""
+    four = {
+        "schema": "pass",
+        "assertions": "pass",
+        "playthrough": "pass",
+        "render_accessibility": "pass",
+    }
+    assert gates_passed(four, games.ITERATION_GATES) is False
+    assert gates_passed(
+        {**four, "novelty": "PASS - catching mechanic, new goal and input"},
+        games.ITERATION_GATES,
+    ) is True
+    assert gates_passed(
+        {**four, "novelty": "FAIL - same mechanic re-skinned"},
+        games.ITERATION_GATES,
+    ) is False
+
+
+def test_iteration_prompt_carries_the_design_history(client, profile, monkeypatch):
+    captured = {}
+
+    async def created(**kwargs):
+        captured["prompt"] = kwargs["prompt"]
+        return {"session_id": "devin-test", "url": "https://app.devin.ai/sessions/test"}
+
+    monkeypatch.setattr(games.devin_client, "create_session", created)
+
+    with SessionLocal() as session:
+        current = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=1,
+            status="ready",
+            is_live=True,
+            design={
+                "mechanic": "stack cargo onto a rocket",
+                "goal": "reach the target payload",
+                "input_mode": "typed digits",
+                "theme": "outer space",
+                "reward_style": "launch animation per correct answer",
+            },
+        )
+        session.add(current)
+        session.commit()
+        current_id = current.id
+
+    client.post(f"/games/{current_id}/iterate", json={})
+    assert "stack cargo onto a rocket" in captured["prompt"]
+    assert "REINVENTION MANDATE" in captured["prompt"]
+
+
+def test_daily_run_reinvents_every_live_game_once(client, profile, monkeypatch):
+    async def created(**_kwargs):
+        return {"session_id": "devin-test", "url": "https://app.devin.ai/sessions/test"}
+
+    monkeypatch.setattr(games.devin_client, "create_session", created)
+
+    with SessionLocal() as session:
+        session.query(Game).delete()
+        live_addition = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=1,
+            status="ready",
+            is_live=True,
+        )
+        live_subtraction = Game(
+            profile_id=profile,
+            skill_id="subtraction",
+            version=1,
+            status="ready",
+            is_live=True,
+        )
+        session.add_all([live_addition, live_subtraction])
+        session.commit()
+
+    body = client.post("/games/daily-run").json()
+    assert len(body["started"]) == 2
+    assert body["skipped"] == []
+
+    # A second run the same day skips: the successors are still in flight.
+    again = client.post("/games/daily-run").json()
+    assert again["started"] == []
+    assert len(again["skipped"]) == 2
+
+
+def test_session_complete_starts_then_feeds_the_in_flight_iteration(
+    client, profile, monkeypatch
+):
+    """Every play session is new data: the first ended session starts the next
+    game, a second one while it builds forwards the data instead of doubling."""
+
+    async def created(**_kwargs):
+        return {"session_id": "devin-test", "url": "https://app.devin.ai/sessions/test"}
+
+    forwarded = {}
+
+    async def sent(session_id, message):
+        forwarded["session_id"] = session_id
+        forwarded["message"] = message
+
+    monkeypatch.setattr(games.devin_client, "create_session", created)
+    monkeypatch.setattr(games.devin_client, "send_message", sent)
+
+    with SessionLocal() as session:
+        session.query(Game).delete()
+        live = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=1,
+            status="ready",
+            is_live=True,
+        )
+        session.add(live)
+        session.commit()
+        live_id = live.id
+
+    first = client.post(f"/games/{live_id}/session-complete").json()
+    assert first["action"] == "iteration_started"
+    assert forwarded == {}
+
+    second = client.post(f"/games/{live_id}/session-complete").json()
+    assert second["action"] == "play_data_forwarded"
+    assert second["game_id"] == first["game_id"]
+    assert forwarded["session_id"] == "devin-test"
+    assert "NEW PLAY DATA" in forwarded["message"]
+
+    with SessionLocal() as session:
+        successors = session.query(Game).filter(Game.status == "iterating").all()
+        assert len(successors) == 1
+
+
+def _mistake(profile_id, error_class, days_ago, operands=(52, 27), answer=35):
+    return Attempt(
+        profile_id=profile_id,
+        skill_id="subtraction",
+        operands=list(operands),
+        operator="-",
+        answer_given=answer,
+        correct_answer=operands[0] - operands[1],
+        is_correct=False,
+        error_class=error_class,
+        difficulty_vector_snapshot={},
+        tier_key="double_digit",
+        latency_to_submit_ms=4000,
+        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days_ago),
+    )
+
+
+def test_the_mistake_network_links_classes_and_profiles_past_vs_current(profile):
+    """Similar mistakes link into one network: same-family classes get edges,
+    and the fold-up separates the child's past mistakes from current ones."""
+    with SessionLocal() as session:
+        session.query(Attempt).delete()
+        session.add_all(
+            [
+                # borrow_omitted: past and current -> persistent
+                _mistake(profile, "borrow_omitted", days_ago=20),
+                _mistake(profile, "borrow_omitted", days_ago=1),
+                # carry_omitted: same family, only in the past -> resolved
+                _mistake(profile, "carry_omitted", days_ago=20),
+                # counting_slip: only current -> emerging
+                _mistake(profile, "counting_slip", days_ago=1),
+                _mistake(profile, "counting_slip", days_ago=2),
+            ]
+        )
+        session.commit()
+        attempts = (
+            session.query(Attempt).order_by(Attempt.created_at, Attempt.id).all()
+        )
+        graph = mistake_graph.build_graph(attempts)
+
+    trends = {n["error_class"]: n["trend"] for n in graph["nodes"]}
+    assert trends == {
+        "borrow_omitted": "persistent",
+        "carry_omitted": "resolved",
+        "counting_slip": "emerging",
+    }
+    assert graph["profile"]["persistent"] == ["borrow_omitted"]
+    assert graph["profile"]["emerging"] == ["counting_slip"]
+    assert graph["profile"]["resolved"] == ["carry_omitted"]
+    assert graph["profile"]["dominant_current"] == "counting_slip"
+
+    # borrow_omitted and carry_omitted share the regrouping family, and they
+    # co-occurred on the same day 20 days ago -- their link carries both.
+    family_edge = next(
+        e
+        for e in graph["edges"]
+        if set(e["between"]) == {"borrow_omitted", "carry_omitted"}
+    )
+    assert family_edge["same_family"] is True
+    assert family_edge["co_occurrences"] == 1
+
+
+def test_session_complete_also_runs_the_mistake_analysis_agent(
+    client, profile, monkeypatch
+):
+    """Each play session runs two agents side by side: one builds the next
+    game, the other reads the mistake network. A second play updates both."""
+    created_sessions = []
+
+    async def created(**kwargs):
+        created_sessions.append(kwargs)
+        return {
+            "session_id": f"devin-{len(created_sessions)}",
+            "url": "https://app.devin.ai/sessions/test",
+        }
+
+    messages = []
+
+    async def sent(session_id, message):
+        messages.append((session_id, message))
+
+    monkeypatch.setattr(games.devin_client, "create_session", created)
+    monkeypatch.setattr(games.devin_client, "send_message", sent)
+
+    with SessionLocal() as session:
+        session.query(Game).delete()
+        session.query(MistakeAnalysis).delete()
+        session.query(Attempt).delete()
+        session.add(_mistake(profile, "borrow_omitted", days_ago=1))
+        live = Game(
+            profile_id=profile,
+            skill_id="subtraction",
+            version=1,
+            status="ready",
+            is_live=True,
+        )
+        session.add(live)
+        session.commit()
+        live_id = live.id
+
+    first = client.post(f"/games/{live_id}/session-complete").json()
+    assert first["analysis"]["action"] == "analysis_started"
+    # Two agent sessions: the analysis agent, then the game-building agent.
+    assert len(created_sessions) == 2
+    assert "mistake-analysis agent" in created_sessions[0]["prompt"]
+    assert "borrow_omitted" in created_sessions[0]["prompt"]
+    # The game-building prompt carries the network too.
+    assert "MISTAKE NETWORK" in created_sessions[1]["prompt"]
+
+    second = client.post(f"/games/{live_id}/session-complete").json()
+    assert second["analysis"]["action"] == "analysis_updated"
+    assert len(created_sessions) == 2  # no duplicate agents
+    # Both in-flight sessions received the fresh play data.
+    assert {sid for sid, _ in messages} == {"devin-1", "devin-2"}
+    assert all("NEW PLAY DATA" in message for _, message in messages)
+
+
+def test_the_mistake_graph_endpoint_serves_the_network(client, profile):
+    with SessionLocal() as session:
+        session.query(Attempt).delete()
+        session.query(MistakeAnalysis).delete()
+        session.add(_mistake(profile, "borrow_omitted", days_ago=1))
+        session.add(
+            MistakeAnalysis(
+                profile_id=profile,
+                skill_id="subtraction",
+                status="complete",
+                analysis={"summary": "one regrouping misconception"},
+            )
+        )
+        session.commit()
+
+    body = client.get(f"/profiles/{profile}/skills/subtraction/mistake-graph").json()
+    assert body["graph"]["profile"]["emerging"] == ["borrow_omitted"]
+    assert body["latest_analysis"]["summary"] == "one regrouping misconception"
+
+
+def test_the_island_ladder_climbs_from_easiest_to_the_ceiling():
+    tiers = progress.ladder("subtraction")
+    assert tiers[0] == difficulty.base_vector(1)
+    assert tiers[-1]["digits"] == difficulty.MAX_DIGITS
+    # Position on the ladder is the child's tangible progress.
+    first = progress.tier_position(tiers[0], "subtraction")
+    last = progress.tier_position(tiers[-1], "subtraction")
+    assert first == (0, len(tiers))
+    assert last == (len(tiers) - 1, len(tiers))
+
+
+def test_the_map_unlocks_islands_left_to_right():
+    tiers = progress.ladder("addition")
+    body = progress.build_map(
+        {
+            "addition": {
+                "vector": tiers[-1],
+                "recent_accuracy": 0.9,
+                "streak": 6,
+                "attempts": 20,
+                "playable": True,
+            },
+            "subtraction": {
+                "vector": difficulty.base_vector(1),
+                "recent_accuracy": 0.5,
+                "attempts": 8,
+                "playable": True,
+            },
+        }
+    )
+    by_skill = {island["skill_id"]: island for island in body["islands"]}
+    assert by_skill["addition"]["status"] == "mastered"
+    assert by_skill["addition"]["progress"] == 1.0
+    assert by_skill["addition"]["bridge_to_next"] == 1.0
+    assert by_skill["subtraction"]["status"] == "active"
+    # Subtraction has only just begun, so multiplication's island stays locked.
+    assert by_skill["multiplication"]["status"] == "locked"
+    assert by_skill["division"]["status"] == "locked"
+    assert body["journey"]["mastered"] == 1
+    assert body["journey"]["current"] == "subtraction"
+
+
+def test_the_progress_map_endpoint_serves_the_journey(client, profile):
+    body = client.get(f"/profiles/{profile}/progress-map").json()
+    assert body["profile_name"] == "Leo"
+    skills = [island["skill_id"] for island in body["islands"]]
+    assert skills == ["addition", "subtraction", "multiplication", "division"]
+    addition = body["islands"][0]
+    assert addition["status"] in {"active", "mastered"}
+    assert 0.0 <= addition["progress"] <= 1.0
+    assert addition["tier_count"] > addition["tier_index"]
+    assert body["islands"][2]["playable"] is False  # multiplication: coming soon
 
 
 def test_the_interviews_focus_answer_is_stored_as_self_regulation():

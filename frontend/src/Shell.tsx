@@ -27,8 +27,8 @@ export function Shell() {
               <NavLink to="/intake" className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}>
                 ✨ New Child
               </NavLink>
-              <NavLink to="/audit" className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}>
-                📜 Audit Log
+              <NavLink to="/map" className={({ isActive }) => `nav-btn ${isActive ? "active" : ""}`}>
+                🗺️ Progress Map
               </NavLink>
               <a href="http://localhost:8899" target="_blank" rel="noreferrer" className="nav-btn" title="Open live SQLite database inspector">
                 📊 Live DB (8899)

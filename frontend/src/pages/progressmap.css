@@ -1,0 +1,103 @@
+/* Kept out of styles.css on purpose: the theme file is rewritten wholesale by
+   the art passes (see main.tsx). */
+
+.progress-map-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.progress-map-student-select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.island-path {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.island-step {
+  display: flex;
+  align-items: center;
+  flex: 1 1 220px;
+  min-width: 220px;
+}
+
+.island-card {
+  flex: 1;
+  text-align: center;
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.island-card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.island-emoji {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.island-locked {
+  opacity: 0.55;
+  filter: grayscale(0.7);
+}
+
+.island-mastered {
+  box-shadow: 0 0 0 2px #f5c542 inset;
+}
+
+.island-active {
+  box-shadow: 0 0 0 2px #4aa3ff inset;
+}
+
+.island-progress-track {
+  width: 100%;
+  height: 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.island-progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #4aa3ff, #42d77d);
+  transition: width 0.4s ease;
+}
+
+.island-tier {
+  margin: 0;
+  font-size: 13px;
+}
+
+.island-stats {
+  margin: 0;
+  font-size: 12px;
+}
+
+.island-bridge {
+  width: 46px;
+  height: 8px;
+  margin: 0 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.island-bridge-fill {
+  height: 100%;
+  background: #b07d48;
+  transition: width 0.4s ease;
+}

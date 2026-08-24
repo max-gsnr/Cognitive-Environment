@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +18,7 @@ from app import (
     devin_client,
     difficulty,
     gates,
+    mistake_graph,
     posthog_client,
     prompts,
     telemetry_signals,
@@ -27,6 +30,7 @@ from app.models import (
     ChildProfile,
     DevelopmentNote,
     Game,
+    MistakeAnalysis,
     ReportedProblem,
     SubjectMastery,
 )
@@ -39,9 +43,14 @@ from app.schemas import (
     ReportProblemRequest,
 )
 
+logger = logging.getLogger("orbit.games")
+
 router = APIRouter(tags=["games"])
 
 REQUIRED_GATES = ("schema", "assertions", "playthrough", "render_accessibility")
+# Iteration is a daily reinvention: the fifth gate is proof the new version is a
+# different game, not the previous one re-tuned.
+ITERATION_GATES = (*REQUIRED_GATES, "novelty")
 PASSING = {"pass", "passed", "ok", "true", "yes"}
 VERDICT = re.compile(r"^\s*([a-z]+)", re.IGNORECASE)
 
@@ -53,7 +62,20 @@ STRUCTURED_OUTPUT_SCHEMA: dict[str, Any] = {
         "commit_sha": {"type": "string"},
         "gate_results": {
             "type": "object",
-            "properties": {gate: {"type": "string"} for gate in REQUIRED_GATES},
+            "properties": {gate: {"type": "string"} for gate in ITERATION_GATES},
+        },
+        "design": {
+            "type": "object",
+            "properties": {
+                field: {"type": "string"}
+                for field in (
+                    "mechanic",
+                    "goal",
+                    "input_mode",
+                    "theme",
+                    "reward_style",
+                )
+            },
         },
         "summary": {"type": "string"},
         "diagnosis": {"type": "string"},
@@ -65,6 +87,33 @@ STRUCTURED_OUTPUT_SCHEMA: dict[str, Any] = {
 }
 
 
+ANALYSIS_OUTPUT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "mistake_profile": {
+            "type": "object",
+            "properties": {
+                "persistent": {"type": "array", "items": {"type": "string"}},
+                "emerging": {"type": "array", "items": {"type": "string"}},
+                "resolved": {"type": "array", "items": {"type": "string"}},
+                "core_misconception": {"type": "string"},
+                "confidence": {"type": "string"},
+            },
+        },
+        "design_brief": {
+            "type": "object",
+            "properties": {
+                "confront": {"type": "string"},
+                "interaction": {"type": "string"},
+                "avoid": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        "summary": {"type": "string"},
+    },
+    "required": ["mistake_profile", "design_brief"],
+}
+
+
 def _with_repo(prompt: str) -> str:
     """Name the repo the session works in; the prompts themselves stay verbatim."""
     if not settings.repo_url:
@@ -72,7 +121,10 @@ def _with_repo(prompt: str) -> str:
     return f"REPOSITORY: {settings.repo_url} (base branch: main)\n\n{prompt}"
 
 
-def gates_passed(gate_results: dict[str, Any] | None) -> bool:
+def gates_passed(
+    gate_results: dict[str, Any] | None,
+    required: tuple[str, ...] = REQUIRED_GATES,
+) -> bool:
     """Every required gate must report a pass. A missing gate is a failure.
 
     Devin reports a gate as a verdict followed by its evidence -- "PASS - all 10
@@ -89,7 +141,7 @@ def gates_passed(gate_results: dict[str, Any] | None) -> bool:
     independent = gate_results.get("independent")
     if isinstance(independent, dict) and not independent.get("passed"):
         return False
-    for gate in REQUIRED_GATES:
+    for gate in required:
         value = gate_results.get(gate)
         if isinstance(value, bool):
             if not value:
@@ -173,13 +225,263 @@ async def iterate_game(
     game_id: str, body: IterateRequest, session: Session = Depends(get_session)
 ) -> dict[str, Any]:
     current = _require_game(session, game_id)
+    result = await _start_iteration(session, current, demo_mode=body.demo_mode)
+    session.commit()
+    return result
+
+
+@router.post("/games/daily-run")
+async def daily_run(session: Session = Depends(get_session)) -> dict[str, Any]:
+    """Reinvent every live game: one Devin session per profile-and-skill.
+
+    This is the endpoint a daily scheduler hits. Each live game gets exactly one
+    successor session; games already mid-generation or mid-iteration are left
+    alone so a slow session is not doubled up on.
+    """
+    live_games = session.scalars(select(Game).where(Game.is_live.is_(True))).all()
+    started: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    for game in live_games:
+        if _iteration_in_flight(session, game):
+            skipped.append({"game_id": game.id, "reason": "iteration_in_flight"})
+            continue
+        # Each game commits on its own: a failure for one child's game must not
+        # roll back successor rows whose Devin sessions are already running,
+        # nor stop the rest of the roster from being reinvented.
+        try:
+            started.append(await _start_iteration(session, game, demo_mode=False))
+            session.commit()
+        except Exception:
+            session.rollback()
+            logger.exception("daily run: iteration failed for game %s", game.id)
+            skipped.append({"game_id": game.id, "reason": "start_failed"})
+    audit.record(
+        session,
+        actor="system",
+        action="daily_run_started",
+        payload={"started": len(started), "skipped": len(skipped)},
+    )
+    session.commit()
+    return {"started": started, "skipped": skipped}
+
+
+@router.post("/games/{game_id}/session-complete")
+async def session_complete(
+    game_id: str, session: Session = Depends(get_session)
+) -> dict[str, Any]:
+    """Every play session is new data, and new data means a new game.
+
+    The game shell calls this when a play session ends. If no successor is
+    being built yet, one Devin session starts immediately. If the child played
+    again before the successor shipped, the fresh telemetry is forwarded into
+    the in-flight session instead of spawning a duplicate.
+    """
+    game = _require_game(session, game_id)
+    analysis = await _run_mistake_analysis(session, game)
+    in_flight = _iteration_in_flight(session, game)
+    if in_flight is None:
+        result = await _start_iteration(session, game, demo_mode=False)
+        session.commit()
+        return {"action": "iteration_started", "analysis": analysis, **result}
+
+    signals = _signals(
+        session,
+        game,
+        _recent_problem_count(session, game, datetime.now(UTC) - timedelta(days=3)),
+    )
+    breakdown = _error_class_breakdown(session, game.profile_id, game.skill_id)
+    if in_flight.devin_session_id:
+        await devin_client.send_message(
+            in_flight.devin_session_id,
+            "NEW PLAY DATA: the child just finished another play session on "
+            f"version {game.version} while you are building v{in_flight.version}. "
+            "Fold this into the game you are building before you ship it -- "
+            "re-check your diagnosis against these updated signals and the "
+            "updated error-class breakdown, and adjust the design if they "
+            "point somewhere new.\n"
+            f"UPDATED PRECOMPUTED SIGNALS: {_json(signals)}\n"
+            f"UPDATED ERROR-CLASS BREAKDOWN: {_json(breakdown)}"
+        )
+    audit.record(
+        session,
+        actor="system",
+        action="play_data_forwarded",
+        payload={
+            "from_game_id": game.id,
+            "game_id": in_flight.id,
+            "devin_session_id": in_flight.devin_session_id,
+        },
+    )
+    session.commit()
+    return {
+        "action": "play_data_forwarded",
+        "analysis": analysis,
+        "game_id": in_flight.id,
+        "devin_session_id": in_flight.devin_session_id,
+        "status": in_flight.status,
+    }
+
+
+@router.get("/profiles/{profile_id}/skills/{skill_id}/mistake-graph")
+def get_mistake_graph(
+    profile_id: str, skill_id: str, session: Session = Depends(get_session)
+) -> dict[str, Any]:
+    """The child's mistake network plus the latest agent reading of it."""
+    return _mistake_network(session, profile_id, skill_id)
+
+
+async def _run_mistake_analysis(session: Session, game: Game) -> dict[str, Any]:
+    """The analysis agent runs alongside the game-building agent.
+
+    A fresh play session either starts a new analysis session over the updated
+    mistake network, or -- if one is still running for this child and skill --
+    forwards the updated graph into it.
+    """
+    graph = _build_graph(session, game.profile_id, game.skill_id)
+    running = session.scalars(
+        select(MistakeAnalysis)
+        .where(
+            MistakeAnalysis.profile_id == game.profile_id,
+            MistakeAnalysis.skill_id == game.skill_id,
+            MistakeAnalysis.status == "analyzing",
+        )
+        .order_by(MistakeAnalysis.created_at.desc())
+    ).first()
+    if running is not None:
+        if running.devin_session_id:
+            await devin_client.send_message(
+                running.devin_session_id,
+                "NEW PLAY DATA: the child finished another play session. "
+                "Fold this updated mistake network into your analysis before "
+                f"you finish.\nUPDATED MISTAKE NETWORK: {_json(graph)}",
+            )
+        running.graph_snapshot = graph
+        return {"action": "analysis_updated", "analysis_id": running.id}
+
+    profile = session.get(ChildProfile, game.profile_id)
+    if profile is None:
+        raise HTTPException(404, "profile not found")
+    notes = session.scalars(
+        select(DevelopmentNote)
+        .where(DevelopmentNote.profile_id == game.profile_id)
+        .order_by(DevelopmentNote.created_at.desc())
+        .limit(10)
+    ).all()
+    prompt = prompts.render(
+        prompts.ANALYZE_MISTAKES_PROMPT,
+        mistake_graph_json=_json(graph),
+        profile_json=_json(profile_dict(profile)),
+        development_notes_text=_notes_text(notes),
+    )
+    created = await devin_client.create_session(
+        prompt=prompt,
+        tags=["orbit", "analyze-mistakes", game.skill_id],
+        structured_output_schema=ANALYSIS_OUTPUT_SCHEMA,
+        title=f"Orbit: analyze {game.skill_id} mistakes for {profile.name}",
+    )
+    analysis = MistakeAnalysis(
+        profile_id=game.profile_id,
+        skill_id=game.skill_id,
+        devin_session_id=created.get("session_id"),
+        graph_snapshot=graph,
+    )
+    session.add(analysis)
+    session.flush()
+    audit.record(
+        session,
+        actor="system",
+        action="mistake_analysis_started",
+        payload={
+            "analysis_id": analysis.id,
+            "profile_id": game.profile_id,
+            "skill_id": game.skill_id,
+            "devin_session_id": analysis.devin_session_id,
+        },
+    )
+    return {"action": "analysis_started", "analysis_id": analysis.id}
+
+
+async def finalize_mistake_analyses(session: Session) -> int:
+    """Poll running analysis sessions and store their structured readings."""
+    running = session.scalars(
+        select(MistakeAnalysis).where(
+            MistakeAnalysis.status == "analyzing",
+            MistakeAnalysis.devin_session_id.is_not(None),
+        )
+    ).all()
+    finished = 0
+    for analysis in running:
+        remote = await devin_client.get_session(analysis.devin_session_id)
+        output = devin_client.extract_structured_output(remote)
+        if not devin_client.is_finished(remote) or output is None:
+            continue
+        analysis.analysis = output
+        analysis.status = "complete"
+        finished += 1
+        audit.record(
+            session,
+            actor="devin",
+            action="mistake_analysis_completed",
+            payload={"analysis_id": analysis.id, "profile_id": analysis.profile_id},
+        )
+    session.commit()
+    return finished
+
+
+def _build_graph(
+    session: Session, profile_id: str, skill_id: str
+) -> dict[str, Any]:
+    attempts = list(
+        session.scalars(
+            select(Attempt)
+            .where(
+                Attempt.profile_id == profile_id, Attempt.skill_id == skill_id
+            )
+            .order_by(Attempt.created_at, Attempt.id)
+        ).all()
+    )
+    return mistake_graph.build_graph(attempts)
+
+
+def _mistake_network(
+    session: Session, profile_id: str, skill_id: str
+) -> dict[str, Any]:
+    """The graph plus the latest completed agent reading of it."""
+    latest = session.scalars(
+        select(MistakeAnalysis)
+        .where(
+            MistakeAnalysis.profile_id == profile_id,
+            MistakeAnalysis.skill_id == skill_id,
+            MistakeAnalysis.status == "complete",
+        )
+        .order_by(MistakeAnalysis.created_at.desc())
+    ).first()
+    return {
+        "graph": _build_graph(session, profile_id, skill_id),
+        "latest_analysis": latest.analysis if latest else None,
+    }
+
+
+def _iteration_in_flight(session: Session, game: Game) -> Game | None:
+    return session.scalars(
+        select(Game).where(
+            Game.profile_id == game.profile_id,
+            Game.skill_id == game.skill_id,
+            Game.status.in_(["generating", "iterating"]),
+        )
+    ).first()
+
+
+async def _start_iteration(
+    session: Session, current: Game, demo_mode: bool
+) -> dict[str, Any]:
     profile = session.get(ChildProfile, current.profile_id)
     if profile is None:
         raise HTTPException(404, "profile not found")
     mastery = session.get(SubjectMastery, (current.profile_id, current.skill_id))
 
-    if body.demo_mode:
-        seed_posthog_events(session, game_id)
+    if demo_mode:
+        seed_posthog_events(session, current.id)
 
     since = datetime.now(UTC) - timedelta(days=3)
     breakdown = _error_class_breakdown(session, current.profile_id, current.skill_id)
@@ -198,6 +500,9 @@ async def iterate_game(
     prompt = prompts.render(
         prompts.ITERATE_PROMPT,
         profile_json=_json(profile_dict(profile)),
+        design_history_json=_json(
+            _design_history(session, current.profile_id, current.skill_id)
+        ),
         code_path=current.code_path or "",
         current_version=current.version,
         skill_label=current.skill_id.capitalize(),
@@ -211,11 +516,14 @@ async def iterate_game(
         reported_problems_text=_problems_text(problems),
         posthog_project_id=settings.posthog_project_id,
         posthog_host=settings.posthog_host,
-        game_id=game_id,
+        game_id=current.id,
         profile_id=current.profile_id,
         since_timestamp=since.isoformat(),
         new_version=new_version,
         telemetry_signals_json=_json(signals),
+        mistake_network_json=_json(
+            _mistake_network(session, current.profile_id, current.skill_id)
+        ),
     )
 
     session_secrets = (
@@ -244,18 +552,18 @@ async def iterate_game(
         },
     )
     session.add(successor)
+    session.flush()
     audit.record(
         session,
         actor="system",
         action="iteration_started",
         payload={
-            "from_game_id": game_id,
+            "from_game_id": current.id,
             "game_id": successor.id,
             "devin_session_id": successor.devin_session_id,
-            "demo_mode": body.demo_mode,
+            "demo_mode": demo_mode,
         },
     )
-    session.commit()
     return {
         "game_id": successor.id,
         "devin_session_id": successor.devin_session_id,
@@ -362,6 +670,9 @@ async def _poll(session: Session, game_id: str, action: str) -> dict[str, Any]:
     )
     game.gate_results = reported
     game.pr_url = output.get("pr_url") or devin_client.pull_request_url(remote)
+    design = output.get("design")
+    if isinstance(design, dict):
+        game.design = design
     game.test_report = {
         key: output[key]
         for key in (
@@ -374,7 +685,8 @@ async def _poll(session: Session, game_id: str, action: str) -> dict[str, Any]:
         if key in output
     } or None
 
-    if gates_passed(game.gate_results):
+    required = ITERATION_GATES if action == "iteration_completed" else REQUIRED_GATES
+    if gates_passed(game.gate_results, required):
         game.status = "ready"
         _set_live(session, game)
     else:
@@ -430,6 +742,40 @@ def _next_version(session: Session, profile_id: str, skill_id: str) -> int:
         )
     )
     return (highest or 0) + 1
+
+
+def _design_history(
+    session: Session, profile_id: str, skill_id: str
+) -> list[dict[str, Any]]:
+    """Every version's design manifest, oldest first, so a reinvention session
+    can see what this child has already played and avoid repeating it."""
+    rows = session.scalars(
+        select(Game)
+        .where(Game.profile_id == profile_id, Game.skill_id == skill_id)
+        .order_by(Game.version)
+    ).all()
+    history = []
+    for row in rows:
+        design = row.design or _design_from_disk(profile_id, skill_id, row.version)
+        entry: dict[str, Any] = {"version": row.version, "status": row.status}
+        if design:
+            entry.update(design)
+        history.append(entry)
+    return history
+
+
+def _design_from_disk(
+    profile_id: str, skill_id: str, version: int
+) -> dict[str, Any] | None:
+    path = (
+        Path(settings.games_root) / profile_id / skill_id / f"v{version}"
+        / "design.json"
+    )
+    try:
+        parsed = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
 
 
 def _error_class_breakdown(

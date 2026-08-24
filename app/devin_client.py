@@ -52,6 +52,18 @@ async def create_session(
         return response.json()
 
 
+async def send_message(session_id: str, message: str) -> None:
+    """Deliver a follow-up to a running session, e.g. fresh play data that
+    arrived while it was still building the next game version."""
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(
+            f"{settings.devin_api_base}/sessions/{session_id}/message",
+            json={"message": message},
+            headers=_headers(),
+        )
+        response.raise_for_status()
+
+
 async def get_session(session_id: str) -> dict[str, Any]:
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.get(

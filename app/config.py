@@ -37,6 +37,11 @@ class Settings:
     posthog_project_id: str = field(default_factory=lambda: _env("POSTHOG_PROJECT_ID"))
     games_root: str = field(default_factory=lambda: _env("GAMES_ROOT", "games"))
     repo_url: str = field(default_factory=lambda: _env("REPO_URL", ""))
+    # UTC hour (0-23) at which the in-app scheduler reinvents every live game.
+    # Unset disables the scheduler; POST /games/daily-run still works manually.
+    daily_run_hour_utc: str = field(
+        default_factory=lambda: _env("DAILY_RUN_HOUR_UTC")
+    )
     cors_origins: str = field(
         default_factory=lambda: _env(
             "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,*"
@@ -47,6 +52,14 @@ class Settings:
     def allowed_origins(self) -> list[str]:
         origins = (origin.strip() for origin in self.cors_origins.split(","))
         return [origin for origin in origins if origin]
+
+    @property
+    def daily_run_hour(self) -> int | None:
+        try:
+            hour = int(self.daily_run_hour_utc)
+        except ValueError:
+            return None
+        return hour if 0 <= hour <= 23 else None
 
     @property
     def openai_configured(self) -> bool:
