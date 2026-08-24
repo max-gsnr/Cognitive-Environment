@@ -62,7 +62,7 @@ Two loops, deliberately separated:
 
 | | Loop A — difficulty | Loop B — the game |
 | --- | --- | --- |
-| Runs | after every single answer | daily, per live game |
+| Runs | after every single answer | after every play session |
 | Decided by | pure Python over the database | a Devin session |
 | Changes | which numbers come next | the game itself: mechanic, goal, input, theme |
 | Ships as | a row in `subject_mastery` | a gated pull request |
@@ -72,7 +72,7 @@ Loop A never calls a model. `POST /attempts` classifies the answer (`borrow_omit
 the next question at the tier where they should get roughly 80% right — a success rate a
 child with ADHD can stay inside, rather than one correct answer buying one step harder.
 
-Loop B is a daily reinvention, not a nightly tweak. Each run hands Devin the profile,
+Loop B is a reinvention, not a tweak. Each run hands Devin the profile,
 the error breakdown, the teacher's notes, a scoped PostHog key, and the design history
 of every version the child has played (`design.json` per version), and demands a
 noticeably different game: a new core mechanic plus a change of goal, input modality,
@@ -81,10 +81,18 @@ working-memory strain for countable draggable objects. A generated game only goe
 once every gate — schema, assertions, headless playthrough, render/accessibility, and
 (for iterations) novelty — reports a pass.
 
-`POST /games/daily-run` starts one reinvention session per live game, skipping any
-game whose successor is still in flight. Set `DAILY_RUN_HOUR_UTC` to have the API
-process trigger it itself once a day, or leave it unset and cron
-`scripts/daily_run.py`.
+Every play session is new data, and new data means a new game. The game shell POSTs
+`/games/{game_id}/session-complete` when a play session ends; that immediately starts
+a Devin session building the next version. If the child plays again before it ships,
+the fresh telemetry is forwarded into the in-flight session (which folds it into the
+design before shipping) instead of spawning a duplicate. A background poller inside
+the API process finalizes in-flight sessions — gating them and setting them live —
+without anyone watching a frontend.
+
+As a safety net, `POST /games/daily-run` starts one reinvention session per live game
+that has no successor in flight, so a game the child stopped playing keeps evolving.
+Set `DAILY_RUN_HOUR_UTC` to have the API process trigger it itself once a day, or
+leave it unset and cron `scripts/daily_run.py`.
 
 Devin is never the only witness to its own work. Before a version can go live the backend
 re-checks the artifact itself (`app/gates.py`): that it asks *us* for questions instead of

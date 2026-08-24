@@ -151,7 +151,10 @@ TASK
    baseline is uncluttered, and the profile constraints add back from
    there.
 5. Include a visible "Report a problem" button that POSTs a short
-   description to /games/{game_id}/report-problem.
+   description to /games/{game_id}/report-problem. When the play session
+   ends (the session-length question count is reached, or the child
+   exits), POST to /games/{game_id}/session-complete -- this is what
+   triggers the next version of the game to start being built.
 6. Write a design manifest at games/{profile_id}/{skill_id}/v1/design.json
    describing the game you actually built:
    {"mechanic": "...", "goal": "...", "input_mode": "...",
@@ -160,8 +163,8 @@ TASK
    goal = what the child is trying to achieve; input_mode = how answers
    are physically given, e.g. typed digits / drag-and-drop / clicking
    groups; theme = the fictional setting; reward_style = how success is
-   celebrated). Future daily iterations use this manifest to guarantee
-   the next version is a genuinely different game.
+   celebrated). Future iterations use this manifest to guarantee the
+   next version is a genuinely different game.
 7. Instrument with PostHog (project key: {posthog_project_key}, host:
    {posthog_host}). Emit problem_shown, answer_submitted {attempt_id,
    correct, time_to_solve_ms, error_class} (attempt_id and error_class
@@ -214,14 +217,20 @@ Return structured JSON (in addition to opening the PR):
 """
 
 ITERATE_PROMPT = """\
-You are running the daily reinvention loop for Orbit, an adaptive
-learning platform for children with ADHD. Numeric difficulty tuning
-already happened in real time, deterministically, outside this session --
-that is NOT your job here. Your job is to ship a version of this child's
-game that is a NOTICEABLY DIFFERENT GAME from yesterday's: a child who
-played the current version must sit down tomorrow and recognise it as
-new. Re-tuning pacing or rewards on the same game is not enough. Do not
-ask the user questions -- decide and act.
+You are running the reinvention loop for Orbit, an adaptive learning
+platform for children with ADHD. A play session just ended, and every
+play session produces the next version of the game. Numeric difficulty
+tuning already happened in real time, deterministically, outside this
+session -- that is NOT your job here. Your job is to ship a version of
+this child's game that is a NOTICEABLY DIFFERENT GAME from the one just
+played: the child must recognise their next game as new. Re-tuning
+pacing or rewards on the same game is not enough. Do not ask the user
+questions -- decide and act.
+
+While you work, the child may play again. If a NEW PLAY DATA message
+arrives in this session, fold it in before shipping: re-check your
+diagnosis against the updated signals and adjust the design if they
+point somewhere new.
 
 THE REINVENTION MANDATE (non-negotiable)
 The new version MUST change the core mechanic -- the verb of play -- to
@@ -275,7 +284,7 @@ same session always reads the same way and can be regression-tested offline
 (app/telemetry_signals.py). Treat them as given:
 {telemetry_signals_json}
 
-The reinvention still ships whatever the dominant signal is -- the daily
+The reinvention still ships whatever the dominant signal is -- the
 mandate is unconditional. The signals decide the KIND of game you build:
 if `dominant_signal` is "healthy_struggle" or "inconclusive", keep the new
 game's cognitive demands and pacing equivalent to the current version's
@@ -338,7 +347,9 @@ TASK
    /profiles/{profile_id}/skills/{skill_id}/next-question and submit
    every answer to POST /attempts. Do not change the difficulty vector,
    the question generator, or the error classifier -- those live in the
-   backend and are not yours. Keep the "Report a problem" button and
+   backend and are not yours. Keep the "Report a problem" button, the
+   end-of-play-session POST to /games/{game_id}/session-complete (with
+   the NEW game's id -- it triggers the version after this one), and
    the full PostHog event set, with version={new_version}.
 5. Write the new game to
    games/{profile_id}/{skill_id}/v{new_version}/ where new_version =

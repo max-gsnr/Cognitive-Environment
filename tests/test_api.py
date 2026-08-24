@@ -538,6 +538,52 @@ def test_daily_run_reinvents_every_live_game_once(client, profile, monkeypatch):
     assert len(again["skipped"]) == 2
 
 
+def test_session_complete_starts_then_feeds_the_in_flight_iteration(
+    client, profile, monkeypatch
+):
+    """Every play session is new data: the first ended session starts the next
+    game, a second one while it builds forwards the data instead of doubling."""
+
+    async def created(**_kwargs):
+        return {"session_id": "devin-test", "url": "https://app.devin.ai/sessions/test"}
+
+    forwarded = {}
+
+    async def sent(session_id, message):
+        forwarded["session_id"] = session_id
+        forwarded["message"] = message
+
+    monkeypatch.setattr(games.devin_client, "create_session", created)
+    monkeypatch.setattr(games.devin_client, "send_message", sent)
+
+    with SessionLocal() as session:
+        session.query(Game).delete()
+        live = Game(
+            profile_id=profile,
+            skill_id="addition",
+            version=1,
+            status="ready",
+            is_live=True,
+        )
+        session.add(live)
+        session.commit()
+        live_id = live.id
+
+    first = client.post(f"/games/{live_id}/session-complete").json()
+    assert first["action"] == "iteration_started"
+    assert forwarded == {}
+
+    second = client.post(f"/games/{live_id}/session-complete").json()
+    assert second["action"] == "play_data_forwarded"
+    assert second["game_id"] == first["game_id"]
+    assert forwarded["session_id"] == "devin-test"
+    assert "NEW PLAY DATA" in forwarded["message"]
+
+    with SessionLocal() as session:
+        successors = session.query(Game).filter(Game.status == "iterating").all()
+        assert len(successors) == 1
+
+
 def test_the_interviews_focus_answer_is_stored_as_self_regulation():
     assert _restlessness("focus") == "self_regulation"
     assert _restlessness("self_regulation") == "self_regulation"

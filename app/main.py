@@ -23,21 +23,25 @@ from app.routers import (
     intake,
     profiles,
 )
-from app.scheduler import daily_loop
+from app.scheduler import daily_loop, poll_loop
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     init_db()
-    scheduler = None
-    hour = settings.daily_run_hour
-    if hour is not None and settings.devin_configured:
-        scheduler = asyncio.create_task(daily_loop(hour))
+    tasks: list[asyncio.Task[None]] = []
+    if settings.devin_configured:
+        # Finalizes in-flight Devin sessions so successors go live (and unblock
+        # the next reinvention) without a frontend watching them.
+        tasks.append(asyncio.create_task(poll_loop()))
+        hour = settings.daily_run_hour
+        if hour is not None:
+            tasks.append(asyncio.create_task(daily_loop(hour)))
     try:
         yield
     finally:
-        if scheduler is not None:
-            scheduler.cancel()
+        for task in tasks:
+            task.cancel()
 
 
 app = FastAPI(title="Orbit", version="0.1.0", lifespan=lifespan)

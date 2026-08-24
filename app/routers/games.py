@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -39,6 +40,8 @@ from app.schemas import (
     IterateRequest,
     ReportProblemRequest,
 )
+
+logger = logging.getLogger("orbit.games")
 
 router = APIRouter(tags=["games"])
 
@@ -213,7 +216,16 @@ async def daily_run(session: Session = Depends(get_session)) -> dict[str, Any]:
         if _iteration_in_flight(session, game):
             skipped.append({"game_id": game.id, "reason": "iteration_in_flight"})
             continue
-        started.append(await _start_iteration(session, game, demo_mode=False))
+        # Each game commits on its own: a failure for one child's game must not
+        # roll back successor rows whose Devin sessions are already running,
+        # nor stop the rest of the roster from being reinvented.
+        try:
+            started.append(await _start_iteration(session, game, demo_mode=False))
+            session.commit()
+        except Exception:
+            session.rollback()
+            logger.exception("daily run: iteration failed for game %s", game.id)
+            skipped.append({"game_id": game.id, "reason": "start_failed"})
     audit.record(
         session,
         actor="system",
@@ -224,17 +236,69 @@ async def daily_run(session: Session = Depends(get_session)) -> dict[str, Any]:
     return {"started": started, "skipped": skipped}
 
 
-def _iteration_in_flight(session: Session, game: Game) -> bool:
-    return (
-        session.scalars(
-            select(Game).where(
-                Game.profile_id == game.profile_id,
-                Game.skill_id == game.skill_id,
-                Game.status.in_(["generating", "iterating"]),
-            )
-        ).first()
-        is not None
+@router.post("/games/{game_id}/session-complete")
+async def session_complete(
+    game_id: str, session: Session = Depends(get_session)
+) -> dict[str, Any]:
+    """Every play session is new data, and new data means a new game.
+
+    The game shell calls this when a play session ends. If no successor is
+    being built yet, one Devin session starts immediately. If the child played
+    again before the successor shipped, the fresh telemetry is forwarded into
+    the in-flight session instead of spawning a duplicate.
+    """
+    game = _require_game(session, game_id)
+    in_flight = _iteration_in_flight(session, game)
+    if in_flight is None:
+        result = await _start_iteration(session, game, demo_mode=False)
+        session.commit()
+        return {"action": "iteration_started", **result}
+
+    signals = _signals(
+        session,
+        game,
+        _recent_problem_count(session, game, datetime.now(UTC) - timedelta(days=3)),
     )
+    breakdown = _error_class_breakdown(session, game.profile_id, game.skill_id)
+    if in_flight.devin_session_id:
+        await devin_client.send_message(
+            in_flight.devin_session_id,
+            "NEW PLAY DATA: the child just finished another play session on "
+            f"version {game.version} while you are building v{in_flight.version}. "
+            "Fold this into the game you are building before you ship it -- "
+            "re-check your diagnosis against these updated signals and the "
+            "updated error-class breakdown, and adjust the design if they "
+            "point somewhere new.\n"
+            f"UPDATED PRECOMPUTED SIGNALS: {_json(signals)}\n"
+            f"UPDATED ERROR-CLASS BREAKDOWN: {_json(breakdown)}"
+        )
+    audit.record(
+        session,
+        actor="system",
+        action="play_data_forwarded",
+        payload={
+            "from_game_id": game.id,
+            "game_id": in_flight.id,
+            "devin_session_id": in_flight.devin_session_id,
+        },
+    )
+    session.commit()
+    return {
+        "action": "play_data_forwarded",
+        "game_id": in_flight.id,
+        "devin_session_id": in_flight.devin_session_id,
+        "status": in_flight.status,
+    }
+
+
+def _iteration_in_flight(session: Session, game: Game) -> Game | None:
+    return session.scalars(
+        select(Game).where(
+            Game.profile_id == game.profile_id,
+            Game.skill_id == game.skill_id,
+            Game.status.in_(["generating", "iterating"]),
+        )
+    ).first()
 
 
 async def _start_iteration(
