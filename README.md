@@ -99,6 +99,12 @@ the one misconception the next game should confront; the game-building prompt
 receives both the raw graph and the latest completed brief. The network is served
 at `GET /profiles/{profile_id}/skills/{skill_id}/mistake-graph`.
 
+The journey itself is visible on the Progress Map tab: each topic is an island
+(addition → subtraction → multiplication → division), the child's position on Loop A's
+difficulty ladder is how far across the island they have travelled, and getting far
+enough builds the bridge to the next topic. Backed by
+`GET /profiles/{profile_id}/progress-map` (`app/progress.py`).
+
 As a safety net, `POST /games/daily-run` starts one reinvention session per live game
 that has no successor in flight, so a game the child stopped playing keeps evolving.
 Set `DAILY_RUN_HOUR_UTC` to have the API process trigger it itself once a day, or

@@ -301,6 +301,36 @@ export type EvolutionLog = {
   };
 };
 
+export type Island = {
+  skill_id: string;
+  label: string;
+  emoji: string;
+  order: number;
+  status: "mastered" | "active" | "unlocked" | "locked";
+  playable: boolean;
+  attempts: number;
+  recent_accuracy: number | null;
+  streak: number;
+  tier: DifficultyVector | null;
+  tier_label: string | null;
+  progress: number;
+  tier_index: number;
+  tier_count: number;
+  bridge_to_next: number;
+};
+
+export type ProgressMap = {
+  profile_id: string;
+  profile_name: string;
+  islands: Island[];
+  journey: {
+    mastered: number;
+    total: number;
+    current: string | null;
+    next_locked: string | null;
+  };
+};
+
 export type AuditEntry = {
   id: string;
   actor: string;

@@ -22,6 +22,7 @@ from app.routers import (
     games,
     intake,
     profiles,
+    progress,
 )
 from app.scheduler import daily_loop, poll_loop
 
@@ -63,6 +64,7 @@ app.include_router(games.router)
 app.include_router(demo.router)
 app.include_router(audit_log.router)
 app.include_router(analytics.router)
+app.include_router(progress.router)
 
 
 os.makedirs(settings.games_root, exist_ok=True)

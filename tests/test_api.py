@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app import difficulty, mistake_graph
+from app import difficulty, mistake_graph, progress
 from app.db import SessionLocal, init_db
 from app.main import app
 from app.models import (
@@ -720,6 +720,60 @@ def test_the_mistake_graph_endpoint_serves_the_network(client, profile):
     body = client.get(f"/profiles/{profile}/skills/subtraction/mistake-graph").json()
     assert body["graph"]["profile"]["emerging"] == ["borrow_omitted"]
     assert body["latest_analysis"]["summary"] == "one regrouping misconception"
+
+
+def test_the_island_ladder_climbs_from_easiest_to_the_ceiling():
+    tiers = progress.ladder("subtraction")
+    assert tiers[0] == difficulty.base_vector(1)
+    assert tiers[-1]["digits"] == difficulty.MAX_DIGITS
+    # Position on the ladder is the child's tangible progress.
+    first = progress.tier_position(tiers[0], "subtraction")
+    last = progress.tier_position(tiers[-1], "subtraction")
+    assert first == (0, len(tiers))
+    assert last == (len(tiers) - 1, len(tiers))
+
+
+def test_the_map_unlocks_islands_left_to_right():
+    tiers = progress.ladder("addition")
+    body = progress.build_map(
+        {
+            "addition": {
+                "vector": tiers[-1],
+                "recent_accuracy": 0.9,
+                "streak": 6,
+                "attempts": 20,
+                "playable": True,
+            },
+            "subtraction": {
+                "vector": difficulty.base_vector(1),
+                "recent_accuracy": 0.5,
+                "attempts": 8,
+                "playable": True,
+            },
+        }
+    )
+    by_skill = {island["skill_id"]: island for island in body["islands"]}
+    assert by_skill["addition"]["status"] == "mastered"
+    assert by_skill["addition"]["progress"] == 1.0
+    assert by_skill["addition"]["bridge_to_next"] == 1.0
+    assert by_skill["subtraction"]["status"] == "active"
+    # Subtraction has only just begun, so multiplication's island stays locked.
+    assert by_skill["multiplication"]["status"] == "locked"
+    assert by_skill["division"]["status"] == "locked"
+    assert body["journey"]["mastered"] == 1
+    assert body["journey"]["current"] == "subtraction"
+
+
+def test_the_progress_map_endpoint_serves_the_journey(client, profile):
+    body = client.get(f"/profiles/{profile}/progress-map").json()
+    assert body["profile_name"] == "Leo"
+    skills = [island["skill_id"] for island in body["islands"]]
+    assert skills == ["addition", "subtraction", "multiplication", "division"]
+    addition = body["islands"][0]
+    assert addition["status"] in {"active", "mastered"}
+    assert 0.0 <= addition["progress"] <= 1.0
+    assert addition["tier_count"] > addition["tier_index"]
+    assert body["islands"][2]["playable"] is False  # multiplication: coming soon
 
 
 def test_the_interviews_focus_answer_is_stored_as_self_regulation():
